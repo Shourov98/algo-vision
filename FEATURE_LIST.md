@@ -391,7 +391,7 @@ mobile + desktop visual parity for visualizations.
 
 | ID    | Feature                                                | Status | Branch / PR  | Notes |
 |-------|--------------------------------------------------------|--------|--------------|-------|
-| X.1   | Git repository initialized with develop + main          | ⬜     |              |       |
+| X.1   | Git repository initialized with develop + main          | ✅     | commit 7af35e9 |       |
 | X.2   | Branch protection on main + develop                    | ⬜     |              |       |
 | X.3   | Pre-commit hooks (lefthook: lint, typecheck, tests, secrets) | ⬜ |              |       |
 | X.4   | Conventional Commits enforced via commitlint            | ⬜     |              |       |
@@ -401,6 +401,7 @@ mobile + desktop visual parity for visualizations.
 | X.8   | README with setup instructions                          | ⬜     |              |       |
 | X.9   | Docker Compose for full local stack (api + web + db)   | ⬜     |              |       |
 | X.10  | CORS configured (frontend ↔ backend credentials mode)   | ⬜     |              |       |
+| X.11  | 400-line file size rule enforced (lefthook pre-commit + CI check) | ⬜ |            |       |
 
 ---
 

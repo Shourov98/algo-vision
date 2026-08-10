@@ -174,6 +174,25 @@ ticket.
 Two pieces of similar-looking code are not automatically duplicates.
 Abstract **repeated behavior**, not accidental similarity.
 
+### 4.11 File Size Rule (400 Lines Max)
+
+**Every source file must be ≤ 400 lines.** This is a strict rule
+enforced by pre-commit hook and CI. See `GIT_WORKFLOW.md` §12 for
+full details, exceptions, and refactoring patterns.
+
+Applies to: `*.py`, `*.ts`, `*.tsx`, `*.js`, `*.jsx`.
+Does not apply to: `*.md`, generated files, migrations, SVGs, lock
+files.
+
+``` text
+> 350 lines  →  YELLOW warning; refactor in this commit or follow-up
+> 400 lines  →  RED; commit blocked, CI fails
+```
+
+When a file approaches 400 lines, **split by responsibility** (not by
+line count). See `GIT_WORKFLOW.md` §12.4 for the standard split
+patterns (Python service/ module, TypeScript component/ folder).
+
 ---
 
 ## 5. SOLID Is Law
@@ -251,6 +270,7 @@ Never skip steps. Never merge your own PR without required approvals.
 ❌ Don't log secrets (passwords, hashes, tokens).
 ❌ Don't merge without required approvals.
 ❌ Don't squash-rewrite history of merged PRs.
+❌ Don't write a source file > 400 lines. Split by responsibility.
 
 ---
 
@@ -282,6 +302,7 @@ Before every commit:
 □ git diff --check passes (no whitespace errors)
 □ Verification commands from your agent doc all pass
 □ No secrets in diff
+□ No source file > 400 lines (GIT_WORKFLOW.md §12)
 ```
 
 Before every PR:

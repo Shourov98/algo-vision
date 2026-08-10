@@ -597,7 +597,185 @@ Conventional Commits.
 
 ---
 
-## 12. References
+## 12. File Size Rule (400 Lines Max)
+
+**Every source file must be ≤ 400 lines, including blank lines and
+comments.** This is a **strict** rule. If a file approaches 400 lines,
+you must split it before merging.
+
+### 12.1 Rationale
+
+- Files > 400 lines are a strong signal that a class or module has
+  more than one responsibility.
+- Long files are harder to read, review, and navigate.
+- They usually indicate SRP violation (God class, god module).
+- Smaller files are easier to test in isolation.
+- This rule is consistent with the SOLID principles enforced
+  throughout the project.
+
+### 12.2 Scope
+
+Applies to:
+
+``` text
+✓ *.py          (backend)
+✓ *.ts / *.tsx  (frontend)
+✓ *.js / *.jsx  (frontend, if any)
+```
+
+Does **not** apply to:
+
+``` text
+✗ Markdown documentation (*.md)
+✗ Migration files (Alembic auto-generated structure)
+✗ Generated files (Alembic env.py, Next.js scaffolding)
+✗ SVG design references
+✗ Lock files (pnpm-lock.yaml, poetry.lock)
+```
+
+### 12.3 Soft Warning Threshold
+
+``` text
+> 350 lines  →  YELLOW  — refactor in this commit or open a follow-up
+> 400 lines  →  RED    — pre-commit hook blocks; CI fails
+```
+
+### 12.4 How to Split
+
+Common patterns for splitting:
+
+**Python (backend):**
+
+``` text
+# Before: 500-line service.py
+service.py
+
+# After: split by responsibility
+service/
+├── __init__.py
+├── orchestrator.py            # main service class
+├── validators.py              # input validation
+├── transformers.py            # entity → DTO conversion
+└── queries.py                 # complex query helpers
+```
+
+**TypeScript (frontend):**
+
+``` text
+# Before: 450-line component file
+visualization-page.tsx
+
+# After: split by concern
+visualization-page/
+├── index.tsx                  # main export
+├── visualization-page.tsx     # composition
+├── use-visualization-page.ts  # page-specific hook
+├── components/
+│   ├── shell.tsx
+│   ├── header.tsx
+│   └── sidebar.tsx
+└── types.ts
+```
+
+### 12.5 Enforcement
+
+**Pre-commit hook** (added to `lefthook.yml`):
+
+```yaml
+pre-commit:
+  commands:
+    file-size-check:
+      run: |
+        MAX=400
+        FAIL=0
+        for f in $(git diff --cached --name-only --diff-filter=ACMR \
+                   | grep -E '\.(py|ts|tsx|js|jsx)$'); do
+          if [ -f "$f" ]; then
+            LINES=$(wc -l < "$f")
+            if [ "$LINES" -gt "$MAX" ]; then
+              echo "❌ $f: $LINES lines (max $MAX)"
+              FAIL=1
+            fi
+          fi
+        done
+        exit $FAIL
+```
+
+**CI job** (`.github/workflows/ci.yml`):
+
+```yaml
+- name: Check file size
+  run: |
+    MAX=400
+    FAIL=0
+    for f in $(find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
+               -not -path "*/node_modules/*" -not -path "*/.next/*" \
+               -not -path "*/__pycache__/*" -not -path "./migrations/*"); do
+      LINES=$(wc -l < "$f")
+      if [ "$LINES" -gt "$MAX" ]; then
+        echo "::error file=$f:: $LINES lines (max $MAX)"
+        FAIL=1
+      fi
+    done
+    exit $FAIL
+```
+
+### 12.6 Exceptions
+
+A file may legitimately exceed 400 lines **only** if:
+
+1.  It is auto-generated (migrations, schemas, etc.).
+2.  It is a large flat data structure (e.g., a constants file with
+    200 small entries) — and even then, prefer a generated JSON/YAML
+    file loaded at runtime.
+3.  The user explicitly approves an exception in the PR description.
+
+**Exceptions must be justified in the PR body** with:
+
+``` text
+## File Size Exception
+
+- File: `src/modules/algorithms/service.py` (487 lines)
+- Reason: Generated from OpenAPI spec; cannot split without breaking
+  schema ↔ service round-trip.
+- Alternative considered: ❌ Would require schema duplication.
+- Approved by: @<user>
+```
+
+### 12.7 Refactoring Trigger
+
+When you find yourself wanting to add the 401st line to a file:
+
+1.  **Stop.**
+2.  Ask: what is the new responsibility being added?
+3.  Extract it into a sibling module / sibling file.
+4.  Update imports.
+5.  Verify all tests still pass.
+6.  Commit the split as its own commit before the feature commit.
+
+### 12.8 Per-Session Check
+
+After each code-writing iteration, run:
+
+``` bash
+# Find files > 350 lines (warning)
+find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
+  -not -path "*/node_modules/*" -not -path "*/.next/*" \
+  -not -path "*/__pycache__/*" -not -path "./migrations/*" \
+  -exec wc -l {} + | awk '$1 > 350' | sort -rn
+
+# Find files > 400 lines (block)
+find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
+  -not -path "*/node_modules/*" -not -path "*/.next/*" \
+  -not -path "*/__pycache__/*" -not -path "./migrations/*" \
+  -exec wc -l {} + | awk '$1 > 400' | sort -rn
+```
+
+Zero output = pass.
+
+---
+
+## 13. References
 
 - Architecture: `ARCHITECTURE.md`
 - Backend plan: `ALGOVISION_BACKEND_PLAN.md`

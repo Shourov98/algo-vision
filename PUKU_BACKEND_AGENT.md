@@ -149,6 +149,37 @@ Don't duplicate:
 Do not over-abstract. Two pieces of similar-looking code are not
 automatically duplicates.
 
+### 3.7 File Size Rule (400 Lines Max)
+
+**Strict.** No Python source file (`.py`) may exceed 400 lines.
+
+When a service, repository, or module approaches 400 lines, split it
+**by responsibility** (not arbitrarily). Common splits for the
+backend:
+
+``` text
+# Service approaching 400 lines → split into a package
+modules/algorithms/
+├── __init__.py             # exports get_algorithm_service
+├── service.py              # ≤ 400 lines (orchestration only)
+├── validators.py           # input validation rules
+├── transformers.py         # ORM/DTO ↔ response conversions
+└── queries.py              # complex SQL helpers
+```
+
+The pre-commit hook (`lefthook.yml`) blocks commits where any
+modified `.py` file exceeds 400 lines. CI runs the same check on every
+PR. See `GIT_WORKFLOW.md` §12 for full details, exceptions, and the
+hook configuration.
+
+**Allowed exceptions** (must be justified in the PR body):
+
+- Auto-generated Alembic migration files.
+- Auto-generated schema files (e.g., from OpenAPI codegen).
+
+When in doubt: **split**. A 200-line module is better than a 500-line
+module even if the smaller module "looks empty."
+
 ---
 
 ## 4. Phase Roadmap (Your Implementation Order)
@@ -785,6 +816,7 @@ A commit is **not done** unless ALL of these pass:
 □ git diff --check                        (no whitespace errors)
 □ gitleaks protect --staged               (no secrets)
 □ git log --oneline -1                    (commit message follows convention)
+□ No .py file in diff > 400 lines          (GIT_WORKFLOW.md §12)
 ```
 
 A phase is **not done** unless additionally:
@@ -980,6 +1012,7 @@ yourself wanting to log any of these, **stop and refactor**.
 ❌ **Don't** put SQL in router handlers.
 ❌ **Don't** import `ProgressService` from `AlgorithmService`.
 ❌ **Don't** log passwords, hashes, or tokens.
+❌ **Don't** write a Python file > 400 lines. Split by responsibility.
 
 ---
 
