@@ -8,19 +8,111 @@
 
 ---
 
-## 1. Branch Strategy — Lightweight Git Flow
+## 1. Branch Strategy — Lightweight Git Flow + Frontend/Backend Split
+
+AlgoVision uses **one integration branch per domain** to keep
+frontend and backend work isolated while they evolve in parallel.
 
 ``` text
-main                      Production-ready. Protected. Tagged per release.
-└── develop               Integration branch. Default branch for PRs.
-    ├── feat/<scope>/<ticket>      Feature work
-    ├── fix/<scope>/<ticket>       Bug fixes
-    ├── refactor/<scope>/<ticket>  Internal restructuring
-    ├── perf/<scope>/<ticket>      Performance improvements
-    ├── test/<scope>/<ticket>      Test-only changes
-    ├── docs/<scope>/<ticket>      Documentation only
-    └── chore/<scope>/<ticket>     Tooling, deps, config
+main                          Production-ready. Protected. Tagged per release.
+└── develop                   Cross-cutting integration (default for general PRs)
+    ├── dev-frontend          Frontend integration (features F1.*–F7.*)
+    │     └── feat/<scope>/<ticket>    Frontend feature work
+    ├── dev-backend           Backend integration (features B1.*–B6.*)
+    │     └── feat/<scope>/<ticket>    Backend feature work
+    └── (cross-cutting X.* features branch from develop directly)
 ```
+
+### 1.1 Branch Topology
+
+``` text
+main                                (canonical docs only; protected)
+ │
+ └── develop                        (cross-cutting integration)
+      │
+      ├── dev-frontend              (frontend integration)
+      │     │
+      │     ├── feat/algorithms/quick-sort-module        → PR → dev-frontend
+      │     ├── feat/auth/login-page                     → PR → dev-frontend
+      │     └── feat/visualization/array-adapter         → PR → dev-frontend
+      │
+      ├── dev-backend               (backend integration)
+      │     │
+      │     ├── feat/auth/login-endpoint                → PR → dev-backend
+      │     ├── feat/algorithms/list-endpoint           → PR → dev-backend
+      │     └── feat/dashboard/streak-calculator         → PR → dev-backend
+      │
+      └── (cross-cutting X.* work)
+            │
+            ├── feat/ci/add-ci-pipeline                 → PR → develop
+            └── chore/deps/bump-fastapi                  → PR → develop
+```
+
+### 1.2 Branch Routing Rule (STRICT)
+
+When implementing a feature, the **base branch and target branch** are
+determined by the feature ID prefix in `FEATURE_LIST.md`:
+
+| Feature ID prefix       | Base branch    | Target branch | Read these docs                  |
+|-------------------------|----------------|---------------|----------------------------------|
+| `B1.*`, `B2.*`, ..., `B6.*` | `dev-backend`  | `dev-backend` | `PUKU_BACKEND_AGENT.md`, `ALGOVISION_BACKEND_PLAN.md`, `DATABASE_DESIGN.md`, `AlgoVision_BACKEND.md` |
+| `F1.*`, `F2.*`, ..., `F7.*` | `dev-frontend` | `dev-frontend`| `PUKU_FRONTEND_AGENT.md`, `ALGOVISION_FRONTEND_PLAN.md`, `AlgoVision_FRONTEND.md` |
+| `X.*`                  | `develop`      | `develop`     | Both agent docs                  |
+
+**Violations:**
+
+- ❌ A backend feature (B-prefix) PR'd to `dev-frontend` or `develop`
+  → blocked.
+- ❌ A frontend feature (F-prefix) PR'd to `dev-backend` or `develop`
+  → blocked.
+- ❌ A cross-cutting feature (X-prefix) PR'd to `dev-frontend` or
+  `dev-backend` → blocked (unless it touches only one side; in which
+  case re-classify as F or B and follow the appropriate routing).
+
+**How Puku decides at runtime:**
+
+``` bash
+# Pseudo-code for branch selection
+case $FEATURE_ID in
+  B*)  BASE=dev-backend; TARGET=dev-backend ;;
+  F*)  BASE=dev-frontend; TARGET=dev-frontend ;;
+  X*)  BASE=develop; TARGET=develop ;;
+  *)   echo "Unknown feature ID; ask user."; exit 1 ;;
+esac
+```
+
+### 1.3 Promote-to-Develop Flow
+
+`dev-frontend` and `dev-backend` are kept aligned with `develop`
+through **periodic fast-forwards**. The cadence:
+
+``` text
+When a phase is complete and verified on its dev branch:
+  dev-frontend ──ff──▶ develop         (or merge --no-ff if histories diverged)
+  dev-backend  ──ff──▶ develop         (same)
+
+When both dev branches are green on develop and have completed their
+phase, cut release:
+  develop ──cut release/v0.X.Y──▶ release/v0.X.Y ──merge──▶ main + tag
+```
+
+The cadence is **not** "every commit". It's **per verified phase**
+(see `FEATURE_LIST.md` §6 for what "complete" means for each phase).
+
+### 1.4 Why Two Dev Branches?
+
+1. **Isolation**: frontend and backend can iterate without stepping on
+   each other's CI.
+2. **Clean diffs**: a frontend PR is reviewable without backend noise;
+   vice versa.
+3. **Parallelism**: two agents (or two developers) can work
+   simultaneously without forced merges.
+4. **Cleaner history**: each integration branch has only commits
+   relevant to its domain.
+
+**Tradeoff acknowledged:** sync merges between `dev-frontend` and
+`dev-backend` are required at phase boundaries. This is acceptable
+because each phase has a clear Definition of Done.
 
 **Release flow:**
 
@@ -309,7 +401,21 @@ Place at `.github/pull_request_template.md`:
 
 ## 5. Branch Protection Rules
 
-Apply on `main` and `develop`:
+Apply on **every** protected branch (`main`, `develop`,
+`dev-frontend`, `dev-backend`):
+
+### 5.0 Universal Rule: No Direct Push, No Direct Merge
+
+**Nothing reaches a protected branch without a PR.** This is enforced
+both socially and via branch protection rules below.
+
+- ❌ No `git push` directly to `main`, `develop`, `dev-frontend`,
+  `dev-backend`.
+- ❌ No `git merge` on the CLI into these branches bypassing the PR
+  flow (even with `--ff-only`).
+- ❌ No `gh repo merge` direct-to-branch.
+- ✅ Every change goes: branch → commit → push → PR → CI → review →
+  squash-merge via `gh pr merge --squash`.
 
 ### 5.1 `main`
 
@@ -329,9 +435,10 @@ Apply on `main` and `develop`:
 ☑ Include administrators
 ☐ Allow force pushes          (NEVER)
 ☐ Allow deletions             (NEVER)
+☐ Allow direct pushes         (NEVER — no exceptions)
 ```
 
-### 5.2 `develop`
+### 5.2 `develop`, `dev-frontend`, `dev-backend`
 
 ``` text
 ☑ Require pull request before merging
@@ -341,9 +448,17 @@ Apply on `main` and `develop`:
    ☑ typecheck
    ☑ test
    ☑ migration-verify
+☑ Require branches to be up to date before merging
 ☑ Require linear history
 ☐ Allow force pushes          (NEVER)
+☐ Allow deletions             (NEVER)
+☐ Allow direct pushes         (NEVER — no exceptions)
 ```
+
+**Recommended:** set the same rules on `dev-frontend` and
+`dev-backend` so even the integration branches require PR + review.
+Feature branches (`feat/*`, `fix/*`, etc.) have no protection — they
+are scratch branches.
 
 ---
 

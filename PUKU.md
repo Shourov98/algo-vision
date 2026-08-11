@@ -58,20 +58,25 @@ Before doing anything, in this exact order:
 
 1.  **Read this file** (`PUKU.md`) completely.
 2.  **Read `GIT_WORKFLOW.md`** — you must internalize the branching,
-    commit, and PR conventions.
+    commit, and PR conventions, especially the **branch routing
+    rule** (§1.2).
 3.  **Read `ARCHITECTURE.md`** — understand the system context,
     containers, components, and key sequence diagrams.
-4.  **Determine the task scope**:
-    - Backend only → read `PUKU_BACKEND_AGENT.md`, then
+4.  **Determine the task scope** by feature ID prefix:
+    - `B*` (backend) → branch from `dev-backend`, PR to
+      `dev-backend`. Read `PUKU_BACKEND_AGENT.md`, then
       `ALGOVISION_BACKEND_PLAN.md`, then `DATABASE_DESIGN.md`, then
       `AlgoVision_BACKEND.md`.
-    - Frontend only → read `PUKU_FRONTEND_AGENT.md`, then
+    - `F*` (frontend) → branch from `dev-frontend`, PR to
+      `dev-frontend`. Read `PUKU_FRONTEND_AGENT.md`, then
       `ALGOVISION_FRONTEND_PLAN.md`, then `AlgoVision_FRONTEND.md`.
-    - Cross-cutting → read both agent docs.
+    - `X*` (cross-cutting) → branch from `develop`, PR to `develop`.
+      Read both agent docs.
 5.  **Inspect the live repository** with `ls`, `tree`, `find`,
     `cat package.json` / `pyproject.toml`, etc. Do not assume empty
     repo.
-6.  **Identify your current branch** and ensure it matches the task.
+6.  **Identify your current branch** and ensure it matches the
+    routing rule for the feature.
 7.  **Identify the single ticket** you are implementing. If the task
     scope spans multiple tickets, ask the user to narrow it.
 
@@ -120,15 +125,29 @@ Every commit message uses:
 
 Full convention in `GIT_WORKFLOW.md`.
 
-### 4.4 Branch From `develop`
+### 4.4 Branch From the Correct Integration Branch
+
+The base and target branches are determined by feature ID prefix
+(see `GIT_WORKFLOW.md` §1.2):
 
 ``` bash
+# Backend feature (B*)
+git checkout dev-backend && git pull
+git checkout -b <type>/<scope>/<description>
+
+# Frontend feature (F*)
+git checkout dev-frontend && git pull
+git checkout -b <type>/<scope>/<description>
+
+# Cross-cutting feature (X*)
 git checkout develop && git pull
 git checkout -b <type>/<scope>/<description>
 ```
 
 Naming: `<type>/<scope>/<short-kebab-description>`. Never commit
-directly to `develop` or `main`. Always via PR.
+directly to `main`, `develop`, `dev-frontend`, or `dev-backend`.
+**Never merge anything without a PR.** Every change goes through:
+branch → commit(s) → push → PR → CI → review → squash-merge.
 
 ### 4.5 Stage Specific Files
 
@@ -235,11 +254,15 @@ Do not start phase N+1 until phase N is **fully merged and verified**.
 ``` text
 1. Orient (git status, branch, ls, inspect)
 2. Plan (output to user: TASK, PLAN REF, BRANCH, COMMITS, FILES, RISKS)
-3. Branch (git checkout develop && git pull && git checkout -b ...)
+3. Branch (route by feature ID — see §3 and GIT_WORKFLOW.md §1.2):
+     B* → git checkout dev-backend  && git pull
+     F* → git checkout dev-frontend && git pull
+     X* → git checkout develop     && git pull
+   Then: git checkout -b <type>/<scope>/<description>
 4. Implement smallest coherent unit
 5. Verify (run lint/typecheck/test/build)
 6. Commit (Conventional Commits, stage by name)
-7. Push & open PR (use template from GIT_WORKFLOW.md)
+7. Push & open PR (target branch = same as base branch)
 8. Wait for CI + approval
 9. Squash-merge via gh pr merge --squash --delete-branch
 10. Report to user with verification status
@@ -253,6 +276,12 @@ Never skip steps. Never merge your own PR without required approvals.
 
 ❌ Don't skip reading the docs before coding.
 ❌ Don't commit directly to `develop` or `main`.
+❌ Don't branch a backend feature (B*) from `dev-frontend` or `develop`.
+❌ Don't branch a frontend feature (F*) from `dev-backend` or `develop`.
+❌ Don't open a B* PR against `develop` or `dev-frontend`.
+❌ Don't open an F* PR against `develop` or `dev-backend`.
+❌ Don't merge anything without a PR — no direct merges to any
+   protected branch, no fast-forward merges bypassing review.
 ❌ Don't use `git add -A` or `git add .`.
 ❌ Don't write a commit message without a `Refs:` footer pointing to a
    plan section.

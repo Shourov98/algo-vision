@@ -146,9 +146,15 @@ styled-components, Material UI, Chakra, formik, react-router).
 
 See `GIT_WORKFLOW.md`. Summary:
 
-- Branch from latest `develop`.
+- **Branch from `dev-frontend`** (not `develop`): `git checkout
+  dev-frontend && git pull && git checkout -b
+  <type>/<scope>/<description>`. Frontend features (F1.*–F7.*) PR to
+  `dev-frontend`, never to `develop` or `dev-backend`.
+- **Every change goes through a PR.** No direct commits to
+  `main`, `develop`, `dev-frontend`. No direct merges without review.
 - One logical unit per commit. Conventional Commits.
 - Squash-merge PRs.
+- Never push directly to `main`, `develop`, or `dev-frontend`.
 - Reference plan section in commit body.
 
 ### 3.9 DRY
@@ -333,9 +339,14 @@ RISKS:     <anything to flag>
 ### Step 3: Branch
 
 ``` bash
-git checkout develop && git pull
+# Frontend features (F*) base from dev-frontend, target dev-frontend
+git checkout dev-frontend && git pull
 git checkout -b <type>/<scope>/<description>
 ```
+
+The PR target is also `dev-frontend`. Never open a frontend PR against
+`develop` or `dev-backend`. See `GIT_WORKFLOW.md` §1.2 for the full
+branch routing rule.
 
 ### Step 4: Implement (smallest coherent unit)
 
@@ -1100,6 +1111,7 @@ change reasons.
 ❌ **Don't** commit with `git add -A`.
 ❌ **Don't** merge without required approvals.
 ❌ **Don't** write a TS/TSX file > 400 lines. Split by responsibility.
+❌ **Don't** merge anything without a PR — even small fixes require review.
 
 ---
 

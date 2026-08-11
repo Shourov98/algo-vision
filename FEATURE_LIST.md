@@ -392,7 +392,7 @@ mobile + desktop visual parity for visualizations.
 | ID    | Feature                                                | Status | Branch / PR  | Notes |
 |-------|--------------------------------------------------------|--------|--------------|-------|
 | X.1   | Git repository initialized with develop + main          | ✅     | commit 7af35e9 |       |
-| X.2   | Branch protection on main + develop                    | ⬜     |              |       |
+| X.2   | Branch protection on main + develop + dev-frontend + dev-backend (incl. "no direct push", "no direct merge") | ⬜ |              |       |
 | X.3   | Pre-commit hooks (lefthook: lint, typecheck, tests, secrets) | ⬜ |              |       |
 | X.4   | Conventional Commits enforced via commitlint            | ⬜     |              |       |
 | X.5   | PR template (.github/pull_request_template.md)         | ⬜     |              |       |
@@ -428,14 +428,46 @@ F1.* (Foundation)
 
 ---
 
-## 6. Observation Checkpoints
+## 6. Branch Routing Rule (STRICT)
+
+Each feature must be developed on a branch forked from the correct
+integration branch, and PR'd back to that same branch. Cross-cutting
+work goes to `develop`. **Nothing merges without a PR.**
+
+| Feature ID prefix       | Base branch    | PR target branch | Why                                 |
+|-------------------------|----------------|------------------|-------------------------------------|
+| `B1.*` – `B6.*`         | `dev-backend`  | `dev-backend`    | Backend integration isolation       |
+| `F1.*` – `F7.*`         | `dev-frontend` | `dev-frontend`   | Frontend integration isolation      |
+| `X.*` (cross-cutting)  | `develop`      | `develop`        | Touches both or neither             |
+
+**Violations are blocked:**
+
+- ❌ B* PR'd to `develop` or `dev-frontend` → blocked
+- ❌ F* PR'd to `develop` or `dev-backend` → blocked
+- ❌ X* PR'd to `dev-frontend` or `dev-backend` → blocked
+- ❌ Direct push or merge to `main`, `develop`, `dev-frontend`,
+  `dev-backend` (no exceptions, including hotfixes)
+
+**Promote cadence:**
+
+`dev-frontend` and `dev-backend` are fast-forwarded (or merged
+`--no-ff`) into `develop` **at phase boundaries only** — never per
+commit. Releases cut from `develop` go into `main` after the
+release-please / CHANGELOG step.
+
+Full details: `GIT_WORKFLOW.md` §1.2.
+
+---
+
+## 7. Observation Checkpoints
 
 For each phase close, verify:
 
-### 6.1 Code-Level Checkpoints
+### 7.1 Code-Level Checkpoints
 
 ``` text
-□ Branch merged to develop via squash-merge
+□ Branch merged to its target via squash-merge (B* → dev-backend,
+  F* → dev-frontend, X* → develop)
 □ All PRs have required approvals
 □ CI green (lint, typecheck, test, build, migrate)
 □ Coverage maintained or improved
@@ -445,7 +477,7 @@ For each phase close, verify:
 □ Commits follow Conventional Commits with Refs: footer
 ```
 
-### 6.2 Product-Level Checkpoints
+### 7.2 Product-Level Checkpoints
 
 ``` text
 □ Vertical slice works end-to-end (curl OR browser)
@@ -454,7 +486,7 @@ For each phase close, verify:
 □ Next phase is unblocked
 ```
 
-### 6.3 How to Observe Progress
+### 7.3 How to Observe Progress
 
 **For the user:**
 
@@ -480,7 +512,7 @@ Coverage:   84% → 87%
 
 ---
 
-## 7. Milestones
+## 8. Milestones
 
 Track major releases:
 
@@ -495,7 +527,7 @@ Track major releases:
 
 ---
 
-## 8. Update Protocol
+## 9. Update Protocol
 
 **Who updates this file:**
 
@@ -523,7 +555,7 @@ Track major releases:
 
 ---
 
-## 9. References
+## 10. References
 
 - Backend agent: `PUKU_BACKEND_AGENT.md`
 - Frontend agent: `PUKU_FRONTEND_AGENT.md`
