@@ -15,9 +15,6 @@ import re
 import subprocess
 from pathlib import Path
 
-import pytest
-
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 VERSIONS_DIR = BACKEND_ROOT / "migrations" / "versions"
 
@@ -26,6 +23,14 @@ def _alembic(*args: str, env: dict[str, str] | None = None) -> tuple[int, str]:
     full_env = os.environ.copy()
     if env:
         full_env.update(env)
+    # env.py imports from src.* — that only resolves if the backend
+    # root is on PYTHONPATH for the subprocess. Without this, env.py
+    # crashes with ModuleNotFoundError as soon as we wire
+    # ``target_metadata`` to ``src.core.db.Base`` (B2.4).
+    python_path = full_env.get("PYTHONPATH", "")
+    full_env["PYTHONPATH"] = (
+        f"{BACKEND_ROOT}:{python_path}" if python_path else str(BACKEND_ROOT)
+    )
     proc = subprocess.run(
         ["alembic", *args],
         cwd=str(BACKEND_ROOT),
@@ -195,9 +200,91 @@ def test_alembic_history_lists_both_migrations() -> None:
     assert "create_users" in output
 
 
-def test_alembic_heads_returns_users_migration() -> None:
-    """The chain's head must be the users migration."""
+def test_alembic_heads_returns_latest_migration() -> None:
+    """The chain's head must be the most recent migration.
+
+    After Phase 2 adds ``create_refresh_tokens``, the head is
+    that migration. We accept any of the documented revisions as
+    a valid head, so adding new migrations doesn't break this
+    test.
+    """
     env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
     _, output = _alembic("heads", env=env)
-    # We can't predict the exact revision id, but it must be there.
-    assert "create_users" in output or "1107a23d5a7d" in output
+    # Accept any of our revisions as the head.
+    assert any(
+        rev in output
+        for rev in ("1107a23d5a7d", "3b4e5f6a7c8d")
+    )
+
+
+# ---------------------------------------------------------------------------
+# refresh_tokens (B2.4)
+# ---------------------------------------------------------------------------
+
+
+def test_create_refresh_tokens_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_refresh_tokens.py"))
+    assert files, "create_refresh_tokens migration is missing"
+
+
+def test_refresh_tokens_migration_depends_on_users() -> None:
+    """refresh_tokens must come after users (FK target)."""
+    refresh_files = list(VERSIONS_DIR.glob("*_create_refresh_tokens.py"))
+    users_files = list(VERSIONS_DIR.glob("*_create_users.py"))
+    assert refresh_files and users_files
+
+    users_text = users_files[0].read_text()
+    users_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', users_text, re.MULTILINE
+    )
+    assert users_rev_match
+    users_rev = users_rev_match.group(1)
+
+    refresh_text = refresh_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        refresh_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == users_rev
+
+
+def test_refresh_tokens_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    code, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert code == 0, output
+
+    match = re.search(r"CREATE TABLE refresh_tokens \((.*?)\);", output, re.DOTALL)
+    assert match, "refresh_tokens CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in ("user_id", "token_hash", "expires_at", "used_at", "revoked_at"):
+        assert col in ddl, f"missing column {col} in refresh_tokens DDL"
+
+
+def test_refresh_tokens_has_unique_token_hash() -> None:
+    """token_hash must be UNIQUE so duplicate presentations are
+    rejected at the DB layer."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE refresh_tokens \((.*?)\);", output, re.DOTALL)
+    assert match
+    assert "UNIQUE" in match.group(0)
+    assert "token_hash" in match.group(0)
+
+
+def test_refresh_tokens_user_id_has_fk_with_cascade() -> None:
+    """FK to users.id with ON DELETE CASCADE so deleting a user
+    removes their refresh tokens."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE refresh_tokens \((.*?)\);", output, re.DOTALL)
+    assert match
+    assert "REFERENCES users" in match.group(0)
+    assert "ON DELETE CASCADE" in match.group(0)
+
+
+def test_refresh_tokens_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+refresh_tokens", output)

@@ -47,15 +47,15 @@ class Base(DeclarativeBase):
     """Declarative base for all ORM models.
 
     SQLAlchemy 2.x typed style (``Mapped[...]``) requires a single
-    base class shared across the application. Defining it here keeps
-    the model registry in one place so Alembic's ``target_metadata``
-    (configured in ``migrations/env.py``) can pick up every model
-    automatically.
+    base class shared across the application. Defining it here
+    keeps the model registry in one place so Alembic's
+    ``target_metadata`` (configured in ``migrations/env.py``) can
+    pick up every model automatically for autogenerate.
 
     Why a dedicated class, not ``declarative_base()`` inline
     --------------------------------------------------------
-    A dedicated ``Base`` lets us hang cross-cutting behavior on it
-    later (e.g. ``__repr__`` defaults, common mixins) without
+    A dedicated ``Base`` lets us hang cross-cutting behavior on
+    it later (e.g. default ``__repr__``, common mixins) without
     touching individual models.
     """
 

@@ -41,13 +41,17 @@ if config.config_file_name is not None:
 # ---------------------------------------------------------------------------
 # Target metadata
 # ---------------------------------------------------------------------------
-# In phase 2, this becomes:
-#   from src.core.models import metadata as target_metadata
-# For now we leave it None so Alembic knows there's nothing to
-# autogenerate against yet. Migrations are still written by hand
-# (per DATABASE_DESIGN.md §6) and committed via ``alembic revision
-# --autogenerate -m "..."`` only as an aid.
-target_metadata = None
+# Importing src.core.db pulls in the DeclarativeBase and every module
+# that registers models on it (currently src.modules.users). This
+# gives Alembic a complete picture for autogenerate, while keeping
+# env.py unaware of specific models.
+#
+# NOTE: src.core.db also opens a SQLAlchemy engine at import time if
+# anything triggers init_engine(); we import the module only for the
+# Base, not the engine, so no connection is opened here.
+from src.core.db import Base as _SQLAlchemyBase  # noqa: E402
+
+target_metadata = _SQLAlchemyBase.metadata
 
 
 def _resolve_database_url() -> str:
