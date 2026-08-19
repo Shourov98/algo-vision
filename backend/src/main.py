@@ -24,6 +24,7 @@ from src.core.db import dispose_engine, engine_status, init_engine
 from src.core.errors import AppError
 from src.core.logging import configure_logging, log
 from src.core.settings import Settings, get_settings
+from src.modules.health.router import router as health_router
 
 DEFAULT_TITLE = "AlgoVision API"
 DEFAULT_VERSION = "0.1.0"
@@ -53,7 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     init_engine(settings)
     log.info(
         "application.start",
-        phase="1.5",
+        phase="1.8",
         environment=settings.app_env,
         db=engine_status(),
     )
@@ -69,6 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     _register_error_handlers(application)
     _register_lifespan(application)
+    application.include_router(health_router)
 
     @application.get("/", include_in_schema=False)
     def _root() -> dict[str, str]:
