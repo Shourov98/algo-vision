@@ -19,10 +19,12 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from src.core.db import dispose_engine, engine_status, init_engine
 from src.core.errors import AppError
 from src.core.logging import configure_logging, log
+from src.core.rate_limit import build_limiter
 from src.core.settings import Settings, get_settings
 from src.modules.auth.router import router as auth_router
 from src.modules.health.router import router as health_router
@@ -70,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     _register_error_handlers(application)
+    _register_rate_limit_handlers(application, settings)
     _register_lifespan(application)
     application.include_router(health_router)
     application.include_router(auth_router)
@@ -120,6 +123,48 @@ def _register_error_handlers(application: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=payload.model_dump(exclude_none=True),
+        )
+
+
+def _register_rate_limit_handlers(application: FastAPI, settings: Settings) -> None:
+    """Install the slowapi Limiter on app.state and wire the
+    RateLimitExceeded -> JSON handler.
+
+    The Limiter is built fresh per app from ``Settings``. Routers
+    read it via ``request.app.state.limiter`` from the rate-limit
+    dependency in ``src.core.rate_limit``.
+
+    Tests can swap ``app.state.limiter`` to a fresh in-memory
+    Limiter for isolation; the rate-limit dependency reads it
+    lazily at request time.
+    """
+    from src.core.errors import RateLimited
+    from src.core.rate_limit import DEFAULT_RATE_LIMIT
+
+    limiter = build_limiter(
+        default_limit=settings.rate_limit_default or DEFAULT_RATE_LIMIT,
+    )
+    application.state.limiter = limiter
+
+    @application.exception_handler(RateLimitExceeded)
+    async def _handle_rate_limit(
+        request: Request,
+        exc: RateLimitExceeded,
+    ) -> JSONResponse:
+        # Map slowapi's exception to our AppError shape.
+        log.warning(
+            "request.rate_limited",
+            path=request.url.path,
+            method=request.method,
+            detail=str(exc),
+        )
+        envelope = RateLimited(
+            "Too many requests. Please slow down.",
+            details={"limit": str(exc)},
+        )
+        return JSONResponse(
+            status_code=envelope.status_code,
+            content=envelope.to_payload().model_dump(exclude_none=True),
         )
 
 

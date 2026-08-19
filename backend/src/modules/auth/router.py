@@ -17,7 +17,16 @@ Conventions (PUKU_BACKEND_AGENT §7, AlgoVision_BACKEND §3)
 - All AppError subclasses map to their declared status codes via
   the global handler registered in main.py (B1.4).
 
-Refs: ALGOVISION_BACKEND_PLAN.md §4 (Phase 2 — B2.6)
+Rate limiting
+-------------
+``/auth/register``, ``/auth/login``, and ``/auth/refresh`` each
+declare a per-route rate-limit dependency built by
+``src.core.rate_limit.make_rate_limit_dependency``. The
+dependency increments a counter keyed by client IP and route
+path; overflow raises slowapi's ``RateLimitExceeded`` which
+``main.py`` maps to a ``RateLimited`` envelope (HTTP 429).
+
+Refs: ALGOVISION_BACKEND_PLAN.md §4 (Phase 2 — B2.6, B2.8)
 Refs: AlgoVision_BACKEND.md §8 (Authentication)
 Refs: PUKU_BACKEND_AGENT.md §7 (Router Conventions)
 """
@@ -28,6 +37,12 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import ValidationError
 
 from src.core.errors import Unauthorized
+from src.core.rate_limit import (
+    RATE_LIMIT_LOGIN,
+    RATE_LIMIT_REFRESH,
+    RATE_LIMIT_REGISTER,
+    make_rate_limit_dependency,
+)
 from src.core.settings import Settings, get_settings
 from src.modules.auth.dependencies import (
     get_auth_service,
@@ -146,6 +161,7 @@ async def _read_refresh_token(request: Request) -> str:
     response_model=AuthResponse,
     status_code=201,
     summary="Register a new user",
+    dependencies=[Depends(make_rate_limit_dependency(RATE_LIMIT_REGISTER))],
 )
 async def register(
     payload: RegisterRequest,
@@ -172,6 +188,7 @@ async def register(
     "/login",
     response_model=AuthResponse,
     summary="Exchange credentials for tokens",
+    dependencies=[Depends(make_rate_limit_dependency(RATE_LIMIT_LOGIN))],
 )
 async def login(
     payload: LoginRequest,
@@ -197,6 +214,7 @@ async def login(
     "/refresh",
     response_model=AuthResponse,
     summary="Rotate a refresh token",
+    dependencies=[Depends(make_rate_limit_dependency(RATE_LIMIT_REFRESH))],
 )
 async def refresh(
     request: Request,
