@@ -18,6 +18,10 @@ Refs: ALGOVISION_BACKEND_PLAN.md §4 (Phase 2)
 Refs: DATABASE_DESIGN.md §3 (users table)
 """
 
+from src.modules.auth.dependencies import (
+    get_auth_service,
+    get_current_user,
+)
 from src.modules.auth.exceptions import (
     AccountInactive,
     RefreshTokenAlreadyUsed,
@@ -29,6 +33,7 @@ from src.modules.auth.repository import (
     RefreshTokensRepository,
     RefreshTokensRepositoryProtocol,
 )
+from src.modules.auth.router import router as auth_router
 from src.modules.auth.schemas import (
     AuthResponse,
     LoginRequest,
@@ -60,4 +65,7 @@ __all__ = [
     "RegisterRequest",
     "TokenPair",
     "UserResponse",
+    "auth_router",
+    "get_auth_service",
+    "get_current_user",
 ]
