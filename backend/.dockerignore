@@ -1,0 +1,44 @@
+# Files/dirs that should not be copied into the Docker build context.
+# Keeping this list tight reduces build time and image size.
+
+# Local Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtualenvs (use the in-image venv instead)
+.venv/
+venv/
+env/
+
+# Testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local secrets — never bake into an image
+.env
+.env.*
+!.env.example
+
+# Git / GitHub
+.git/
+.github/
+
+# Documentation / planning files (not needed at runtime)
+*.md
+!backend/README.md
+
+# Migrations cache (Alembic recreates)
+migrations/versions/__pycache__/
+
+# Frontend assets (built separately)
+../frontend/
