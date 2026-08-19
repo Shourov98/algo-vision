@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from src.core.logging import configure_logging, log
 from src.core.settings import Settings, get_settings
 
 DEFAULT_TITLE = "AlgoVision API"
@@ -34,11 +35,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     (e.g. with rate-limit overrides or a test database URL) without
     polluting the process-global ``get_settings`` cache.
 
-    Later phase-1 commits wire middleware (CORS, request-id),
-    logging, error handlers, the DB engine, and feature routers.
+    Wiring order: logging is configured FIRST so every later log
+    record is formatted correctly. CORS, error handlers, middleware,
+    and feature routers arrive in later phase-1 commits.
     """
     if settings is None:
         settings = get_settings()
+
+    configure_logging(settings)
+    log.info("application.start", phase="1.3", environment=settings.app_env)
 
     application = FastAPI(
         title=DEFAULT_TITLE,
