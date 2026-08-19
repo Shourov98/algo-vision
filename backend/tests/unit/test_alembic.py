@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = BACKEND_ROOT / "alembic.ini"
 MIGRATIONS_DIR = BACKEND_ROOT / "migrations"
@@ -149,13 +148,11 @@ def test_env_py_uses_null_pool_for_short_lived_process() -> None:
     assert "pool.NullPool" in text
 
 
-def test_env_py_target_metadata_is_none_for_phase_1() -> None:
-    """Until src/core/models.py exists, target_metadata is None.
-    Subsequent commits will replace this with the project metadata."""
+def test_env_py_target_metadata_is_set_to_base_metadata() -> None:
+    """target_metadata must point at src.core.db.Base.metadata so
+    autogenerate can detect schema drift (B2.4 wires this)."""
     text = ENV_PY.read_text()
-    assert re.search(
-        r"^target_metadata\s*=\s*None\b", text, re.MULTILINE
-    )
+    assert "Base.metadata" in text or "_SQLAlchemyBase.metadata" in text
 
 
 # ---------------------------------------------------------------------------
