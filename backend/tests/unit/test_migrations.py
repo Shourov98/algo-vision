@@ -213,7 +213,7 @@ def test_alembic_heads_returns_latest_migration() -> None:
     # Accept any of our revisions as the head.
     assert any(
         rev in output
-        for rev in ("1107a23d5a7d", "3b4e5f6a7c8d")
+        for rev in ("1107a23d5a7d", "3b4e5f6a7c8d", "5c6d7e8f9a0b")
     )
 
 
@@ -288,3 +288,55 @@ def test_refresh_tokens_downgrade_drops_table() -> None:
     env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
     _, output = _alembic("downgrade", "head:base", "--sql", env=env)
     assert re.search(r"DROP TABLE\s+refresh_tokens", output)
+
+
+# ---------------------------------------------------------------------------
+# users_email_lower_idx (B2.10)
+# ---------------------------------------------------------------------------
+
+
+def test_email_lower_idx_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_users_email_lower_idx.py"))
+    assert files, "users_email_lower_idx migration is missing"
+
+
+def test_email_lower_idx_chains_after_refresh_tokens() -> None:
+    """Per B2.10 the new index migration depends on refresh_tokens."""
+    idx_files = list(VERSIONS_DIR.glob("*_users_email_lower_idx.py"))
+    refresh_files = list(VERSIONS_DIR.glob("*_create_refresh_tokens.py"))
+    assert idx_files and refresh_files
+
+    refresh_text = refresh_files[0].read_text()
+    refresh_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', refresh_text, re.MULTILINE
+    )
+    assert refresh_rev_match
+    refresh_rev = refresh_rev_match.group(1)
+
+    idx_text = idx_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        idx_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == refresh_rev
+
+
+def test_email_lower_idx_emits_idempotent_create() -> None:
+    """Upgrade must use CREATE INDEX IF NOT EXISTS so re-running
+    the migration on databases that already have the index is a
+    no-op (DATABASE_DESIGN §4.4)."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    code, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert code == 0, output
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_lower" in output
+    assert "ON users (LOWER(email))" in output
+
+
+def test_email_lower_idx_downgrade_uses_if_exists() -> None:
+    """Downgrade must use DROP INDEX IF EXISTS for the same
+    idempotency reason."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert "DROP INDEX IF EXISTS ix_users_email_lower" in output
