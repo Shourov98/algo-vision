@@ -20,6 +20,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from src.core.db import dispose_engine, engine_status, init_engine
 from src.core.errors import AppError
 from src.core.logging import configure_logging, log
 from src.core.settings import Settings, get_settings
@@ -43,13 +44,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     1. logging (B1.3) — first so every later record is formatted.
     2. error handler (B1.4) — next so unexpected exceptions still
        get logged in our format.
-    3. CORS / middleware / DB engine / routers — later phase-1 commits.
+    3. DB engine (B1.5) — last so feature routers can rely on it.
     """
     if settings is None:
         settings = get_settings()
 
     configure_logging(settings)
-    log.info("application.start", phase="1.4", environment=settings.app_env)
+    init_engine(settings)
+    log.info(
+        "application.start",
+        phase="1.5",
+        environment=settings.app_env,
+        db=engine_status(),
+    )
 
     application = FastAPI(
         title=DEFAULT_TITLE,
@@ -61,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     _register_error_handlers(application)
+    _register_lifespan(application)
 
     @application.get("/", include_in_schema=False)
     def _root() -> dict[str, str]:
@@ -109,6 +117,19 @@ def _register_error_handlers(application: FastAPI) -> None:
             status_code=exc.status_code,
             content=payload.model_dump(exclude_none=True),
         )
+
+
+def _register_lifespan(application: FastAPI) -> None:
+    """Wire application lifespan so the DB pool is closed on shutdown.
+
+    FastAPI's modern lifespan context manager replaces the
+    deprecated @app.on_event('startup'/'shutdown') decorators.
+    """
+
+    @application.on_event("shutdown")
+    async def _on_shutdown() -> None:
+        log.info("application.shutdown")
+        await dispose_engine()
 
 
 # Module-level singleton used by ``uvicorn src.main:app``.

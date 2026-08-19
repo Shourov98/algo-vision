@@ -35,6 +35,14 @@ def base_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     Individual tests override the variables they care about.
     """
+    # Clear any leaked optional vars first (db tests set DB_POOL_SIZE).
+    for var in (
+        "DB_POOL_SIZE",
+        "DB_MAX_OVERFLOW",
+        "DB_POOL_TIMEOUT_SECONDS",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv(
         "DATABASE_URL",
