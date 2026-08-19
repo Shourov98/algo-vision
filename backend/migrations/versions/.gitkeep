@@ -1,0 +1,10 @@
+# migrations/versions/
+
+Alembic writes migration scripts here. Each file is named
+``YYYYMMDDHHMM_<slug>.py`` and contains both ``upgrade()`` and
+``downgrade()``.
+
+This directory is kept in git even when empty (via ``.gitkeep``)
+so the alembic init layout is reproducible from a fresh clone.
+
+See DATABASE_DESIGN.md §6 for the ordered migration plan.
