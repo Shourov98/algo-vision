@@ -39,11 +39,36 @@ import asyncpg
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import NullPool
 from src.core.db import Base
+from src.core.settings import get_settings
 from src.main import create_app
 from src.modules.auth.dependencies import get_auth_service
+from src.modules.catalog.dependencies import (
+    get_catalog_service,
+    get_optional_user,
+)
+from src.modules.catalog.models import (
+    Algorithm,
+    AlgorithmCodeVersion,
+    Category,
+    DataStructure,
+    Topic,
+)
+from src.modules.catalog.repository import (
+    AlgorithmCodeVersionRepository,
+    AlgorithmRepository,
+    CategoryRepository,
+    DataStructureRepository,
+    TopicRepository,
+)
+from src.modules.catalog.service import CatalogService
+from src.shared.events import InProcessEventDispatcher
 
 # ---------------------------------------------------------------------------
 # Skip-everything marker
@@ -192,3 +217,144 @@ async def client(engine) -> AsyncIterator[AsyncClient]:
         yield c
 
     application.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Catalog-specific fixtures + seed helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def catalog_client(
+    engine,
+) -> AsyncIterator[tuple[AsyncClient, AsyncSession]]:
+    """Yield (httpx client, raw DB session) wired to the same engine.
+
+    ``get_catalog_service`` is overridden so the catalog
+    service uses the test session — the app's default
+    engine (pointed at the production DB) is bypassed.
+    ``get_optional_user`` is overridden to a no-op so detail
+    reads don't try to resolve a real auth flow.
+
+    Used by ``test_catalog_endpoints.py`` to exercise the
+    full HTTP stack against a real Postgres test database.
+    """
+    settings = get_settings()
+    application = create_app(settings)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def _catalog_service_dep() -> AsyncIterator[CatalogService]:
+        async with Session() as session:
+            yield CatalogService(
+                categories_repo=CategoryRepository(session),
+                topics_repo=TopicRepository(session),
+                algorithms_repo=AlgorithmRepository(session),
+                code_versions_repo=AlgorithmCodeVersionRepository(session),
+                data_structures_repo=DataStructureRepository(session),
+                events=InProcessEventDispatcher(),
+            )
+
+    async def _no_user() -> None:
+        return None
+
+    application.dependency_overrides[get_catalog_service] = _catalog_service_dep
+    application.dependency_overrides[get_optional_user] = _no_user
+
+    async with Session() as session:
+        transport = ASGITransport(app=application)
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            yield client, session
+
+    application.dependency_overrides.clear()
+
+
+async def seed_category(
+    session: AsyncSession,
+    slug: str = "sorting",
+    name: str = "Sorting",
+) -> Category:
+    """Insert a Category row in ``session`` and return it."""
+    cat = Category(slug=slug, name=name, sort_order=1)
+    session.add(cat)
+    await session.commit()
+    await session.refresh(cat)
+    return cat
+
+
+async def seed_algorithm(
+    session: AsyncSession,
+    *,
+    slug: str = "quick-sort",
+    category_id: object,
+    difficulty: str = "medium",
+    is_published: bool = True,
+    updated_at: object = None,
+) -> Algorithm:
+    """Insert an Algorithm row in ``session`` and return it."""
+    alg = Algorithm(
+        slug=slug,
+        name=slug.replace("-", " ").title(),
+        category_id=category_id,
+        difficulty=difficulty,
+        visualization_type="array",
+        is_published=is_published,
+    )
+    session.add(alg)
+    await session.commit()
+    await session.refresh(alg)
+    if updated_at is not None:
+        alg.updated_at = updated_at  # type: ignore[assignment]
+        await session.commit()
+        await session.refresh(alg)
+    return alg
+
+
+async def seed_data_structure(
+    session: AsyncSession, slug: str = "stack"
+) -> DataStructure:
+    """Insert a DataStructure row in ``session`` and return it."""
+    ds = DataStructure(
+        slug=slug,
+        name=slug.title(),
+        difficulty="easy",
+        visualization_type="linear",
+    )
+    session.add(ds)
+    await session.commit()
+    await session.refresh(ds)
+    return ds
+
+
+async def seed_topic(
+    session: AsyncSession, slug: str = "dp", name: str = "DP"
+) -> Topic:
+    """Insert a Topic row in ``session`` and return it."""
+    topic = Topic(slug=slug, name=name)
+    session.add(topic)
+    await session.commit()
+    await session.refresh(topic)
+    return topic
+
+
+async def seed_code_version(
+    session: AsyncSession,
+    *,
+    algorithm_id: object,
+    language: str = "python",
+    version: int = 1,
+    is_current: bool = True,
+) -> AlgorithmCodeVersion:
+    """Insert an AlgorithmCodeVersion row in ``session`` and return it."""
+    cv = AlgorithmCodeVersion(
+        algorithm_id=algorithm_id,
+        language=language,
+        source_code="def f(): pass",
+        version=version,
+        is_current=is_current,
+    )
+    session.add(cv)
+    await session.commit()
+    await session.refresh(cv)
+    return cv
