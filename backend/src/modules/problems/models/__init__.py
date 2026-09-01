@@ -19,5 +19,6 @@ Refs: PUKU_BACKEND_AGENT.md §3.7 (file size rule: split by responsibility)
 
 from src.modules.problems.models.company import Company
 from src.modules.problems.models.problem import DIFFICULTY_VALUES, Problem
+from src.modules.problems.models.problem_topics import ProblemTopic
 
-__all__ = ["DIFFICULTY_VALUES", "Company", "Problem"]
+__all__ = ["DIFFICULTY_VALUES", "Company", "Problem", "ProblemTopic"]
