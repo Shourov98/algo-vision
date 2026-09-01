@@ -140,7 +140,9 @@ class CatalogServiceProtocol(Protocol):
     ) -> Page[DataStructureResponse]: ...
 
     async def get_data_structure_by_slug(
-        self, slug: str
+        self,
+        slug: str,
+        user_id: UUID | None = None,
     ) -> DataStructureResponse: ...
 
 

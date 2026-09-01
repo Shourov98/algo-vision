@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from uuid import UUID
 
 from src.shared.filters import SortOrder
 from src.shared.pagination import DEFAULT_PAGE_SIZE, Pagination
@@ -30,7 +31,7 @@ class AlgorithmCodeVersionSortField(StrEnum):
 class AlgorithmCodeVersionFilters:
     """Parsed query parameters for code-version list endpoints."""
 
-    algorithm_id: str | None = None  # UUID, str for filter parsing
+    algorithm_id: UUID | None = None
     language: str | None = None
     is_current: bool | None = None
     version_min: int | None = None
