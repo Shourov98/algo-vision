@@ -585,6 +585,7 @@ def test_alembic_heads_returns_latest_migration() -> None:
             "0b1c2d3e4f5a",
             "1c2d3e4f5a6b",
             "2d3e4f5a6b7c",
+            "3e4f5a6b7c8d",
         )
     )
 

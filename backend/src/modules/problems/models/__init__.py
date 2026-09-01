@@ -17,6 +17,7 @@ Refs: ALGOVISION_BACKEND_PLAN.md §4 (Phase 4 — Problems)
 Refs: PUKU_BACKEND_AGENT.md §3.7 (file size rule: split by responsibility)
 """
 
+from src.modules.problems.models.company import Company
 from src.modules.problems.models.problem import DIFFICULTY_VALUES, Problem
 
-__all__ = ["DIFFICULTY_VALUES", "Problem"]
+__all__ = ["DIFFICULTY_VALUES", "Company", "Problem"]
