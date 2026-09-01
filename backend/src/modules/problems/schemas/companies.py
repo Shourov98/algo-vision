@@ -19,6 +19,8 @@ Refs: AlgoVision_BACKEND.md §26 (Response Models)
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -36,7 +38,7 @@ class CompanyResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: str
+    id: UUID
     slug: str
     name: str
 

@@ -68,6 +68,12 @@ from src.modules.catalog.repository import (
     TopicRepository,
 )
 from src.modules.catalog.service import CatalogService
+from src.modules.problems.models import (
+    Company,
+    Problem,
+    ProblemCompany,
+    ProblemTopic,
+)
 from src.shared.events import InProcessEventDispatcher
 
 # ---------------------------------------------------------------------------
@@ -358,3 +364,121 @@ async def seed_code_version(
     await session.commit()
     await session.refresh(cv)
     return cv
+
+
+# ---------------------------------------------------------------------------
+# Problems-specific fixtures + seed helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def problems_client(
+    engine,
+) -> AsyncIterator[tuple[AsyncClient, AsyncSession]]:
+    """Yield (httpx client, raw DB session) wired to the same engine.
+
+    ``get_problems_service`` is overridden so the problems
+    service uses the test session — the app's default
+    engine (pointed at the production DB) is bypassed.
+
+    Used by ``test_problems_endpoints.py`` to exercise the
+    full HTTP stack against a real Postgres test database.
+    """
+    from src.modules.problems.dependencies import (
+        get_problems_service,
+    )
+    from src.modules.problems.repository import (
+        CompanyRepository,
+        ProblemRepository,
+    )
+    from src.modules.problems.service import ProblemsService
+
+    settings = get_settings()
+    application = create_app(settings)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def _problems_service_dep() -> AsyncIterator[ProblemsService]:
+        async with Session() as session:
+            yield ProblemsService(
+                problems_repo=ProblemRepository(session),
+                companies_repo=CompanyRepository(session),
+            )
+
+    application.dependency_overrides[
+        get_problems_service
+    ] = _problems_service_dep
+
+    async with Session() as session:
+        transport = ASGITransport(app=application)
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            yield client, session
+
+    application.dependency_overrides.clear()
+
+
+async def seed_problem(
+    session: AsyncSession,
+    *,
+    slug: str = "two-sum",
+    title: str | None = None,
+    difficulty: str = "easy",
+    visualization_available: bool = True,
+) -> Problem:
+    """Insert a Problem row in ``session`` and return it."""
+    p = Problem(
+        slug=slug,
+        title=title or slug.replace("-", " ").title(),
+        description=f"The {slug} problem.",
+        difficulty=difficulty,
+        solution_explanation="O(n) solution.",
+        external_reference="LC-1",
+        visualization_available=visualization_available,
+    )
+    session.add(p)
+    await session.commit()
+    await session.refresh(p)
+    return p
+
+
+async def seed_company(
+    session: AsyncSession,
+    *,
+    slug: str = "google",
+    name: str | None = None,
+) -> Company:
+    """Insert a Company row in ``session`` and return it."""
+    c = Company(slug=slug, name=name or slug.title())
+    session.add(c)
+    await session.commit()
+    await session.refresh(c)
+    return c
+
+
+async def link_problem_to_company(
+    session: AsyncSession,
+    *,
+    problem_id: object,
+    company_id: object,
+) -> None:
+    """Insert a problem_companies join row."""
+    session.add(
+        ProblemCompany(
+            problem_id=problem_id, company_id=company_id
+        )
+    )
+    await session.commit()
+
+
+async def link_problem_to_topic(
+    session: AsyncSession,
+    *,
+    problem_id: object,
+    topic_id: object,
+) -> None:
+    """Insert a problem_topics join row."""
+    session.add(
+        ProblemTopic(problem_id=problem_id, topic_id=topic_id)
+    )
+    await session.commit()

@@ -33,6 +33,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -53,7 +54,7 @@ class TopicSummary(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: str
+    id: UUID
     slug: str
     name: str
 
@@ -69,7 +70,7 @@ class CompanySummary(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: str
+    id: UUID
     slug: str
     name: str
 
@@ -89,7 +90,7 @@ class ProblemSummaryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: str
+    id: UUID
     slug: str
     title: str
     description: str | None = None
@@ -123,7 +124,7 @@ class ProblemDetailResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: str
+    id: UUID
     slug: str
     title: str
     description: str | None = None
