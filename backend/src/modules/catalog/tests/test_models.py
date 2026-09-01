@@ -37,6 +37,7 @@ from src.modules.catalog.models import (
     Category,
     DataStructure,
     Topic,
+    algorithm_topics,
 )
 
 
@@ -65,6 +66,11 @@ def test_algorithm_code_version_tablename() -> None:
     assert AlgorithmCodeVersion.__tablename__ == "algorithm_code_versions"
 
 
+def test_algorithm_topics_association_table_registered() -> None:
+    """The pure-join Table must be on Base.metadata."""
+    assert "algorithm_topics" in Base.metadata.tables
+
+
 def test_models_are_registered_with_base() -> None:
     """Models must be discoverable by Alembic's target_metadata.
 
@@ -79,6 +85,7 @@ def test_models_are_registered_with_base() -> None:
     assert "algorithms" in table_names
     assert "data_structures" in table_names
     assert "algorithm_code_versions" in table_names
+    assert "algorithm_topics" in table_names
 
 
 def test_category_columns() -> None:
@@ -334,6 +341,28 @@ def test_algorithm_code_version_repr_is_identity_only() -> None:
     text = repr(cv)
     assert "python" not in text
     assert "quicksort(arr)" not in text
+
+
+def test_algorithm_topics_has_composite_pk() -> None:
+    """PK is (algorithm_id, topic_id)."""
+    pk_cols = {c.name for c in algorithm_topics.primary_key.columns}
+    assert pk_cols == {"algorithm_id", "topic_id"}
+
+
+def test_algorithm_topics_fks_cascade() -> None:
+    """Both FKs must CASCADE per DATABASE_DESIGN §4.2."""
+    fks = list(algorithm_topics.foreign_keys)
+    targets = {(fk.column.table.name, fk.ondelete) for fk in fks}
+    assert ("algorithms", "CASCADE") in targets
+    assert ("topics", "CASCADE") in targets
+
+
+def test_algorithm_topics_no_payload_columns() -> None:
+    """The join table must carry no non-PK, non-FK columns."""
+    pk_names = {c.name for c in algorithm_topics.primary_key.columns}
+    fk_names = {fk.parent.name for fk in algorithm_topics.foreign_keys}
+    all_names = {c.name for c in algorithm_topics.columns}
+    assert all_names == pk_names == fk_names
 
 
 def test_models_are_distinct_types() -> None:

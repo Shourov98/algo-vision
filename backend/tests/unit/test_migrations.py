@@ -583,6 +583,7 @@ def test_alembic_heads_returns_latest_migration() -> None:
             "8f9a0b1c2d3e",
             "9a0b1c2d3e4f",
             "0b1c2d3e4f5a",
+            "1c2d3e4f5a6b",
         )
     )
 
@@ -768,3 +769,80 @@ def test_create_algorithm_code_versions_downgrade_drops_table() -> None:
     env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
     _, output = _alembic("downgrade", "head:base", "--sql", env=env)
     assert re.search(r"DROP TABLE\s+algorithm_code_versions", output)
+
+
+# ---------------------------------------------------------------------------
+# B3.4 — create_algorithm_topics
+# ---------------------------------------------------------------------------
+
+
+def test_create_algorithm_topics_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_algorithm_topics.py"))
+    assert files, "create_algorithm_topics migration is missing"
+
+
+def test_algorithm_topics_depends_on_algorithm_code_versions() -> None:
+    """Per DATABASE_DESIGN §6, 0007 follows the B3.x chain."""
+    at_files = list(VERSIONS_DIR.glob("*_create_algorithm_topics.py"))
+    cv_files = list(VERSIONS_DIR.glob("*_create_algorithm_code_versions.py"))
+    assert at_files and cv_files
+
+    cv_text = cv_files[0].read_text()
+    cv_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', cv_text, re.MULTILINE
+    )
+    assert cv_rev_match
+    cv_rev = cv_rev_match.group(1)
+
+    at_text = at_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        at_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == cv_rev
+
+
+def test_create_algorithm_topics_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE algorithm_topics \((.*?)\);", output, re.DOTALL)
+    assert match, "algorithm_topics CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in ("algorithm_id", "topic_id"):
+        assert col in ddl, f"missing column {col} in algorithm_topics DDL"
+
+
+def test_create_algorithm_topics_has_composite_pk() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE algorithm_topics \((.*?)\);", output, re.DOTALL)
+    assert match
+    assert "PRIMARY KEY (algorithm_id, topic_id)" in match.group(0)
+
+
+def test_create_algorithm_topics_fks_cascade() -> None:
+    """Both FKs must CASCADE per DATABASE_DESIGN §4.2."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE algorithm_topics \((.*?)\);", output, re.DOTALL)
+    assert match
+    ddl = match.group(0)
+    assert "REFERENCES algorithms" in ddl
+    assert "REFERENCES topics" in ddl
+    # Both FKs must use CASCADE.
+    assert ddl.count("ON DELETE CASCADE") == 2
+
+
+def test_create_algorithm_topics_has_topic_id_index() -> None:
+    """DATABASE_DESIGN §5 mandates ix_algorithm_topics_topic_id."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert "ix_algorithm_topics_topic_id" in output
+
+
+def test_create_algorithm_topics_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+algorithm_topics", output)

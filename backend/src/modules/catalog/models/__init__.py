@@ -24,6 +24,7 @@ Refs: PUKU_BACKEND_AGENT.md §3.7 (file size rule: split by responsibility)
 """
 
 from src.modules.catalog.models.algorithm import DIFFICULTY_VALUES, Algorithm
+from src.modules.catalog.models.algorithm_topics import algorithm_topics
 from src.modules.catalog.models.category import Category
 from src.modules.catalog.models.code_version import AlgorithmCodeVersion
 from src.modules.catalog.models.data_structure import DataStructure
@@ -36,4 +37,5 @@ __all__ = [
     "Category",
     "DataStructure",
     "Topic",
+    "algorithm_topics",
 ]
