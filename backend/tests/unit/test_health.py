@@ -16,16 +16,12 @@ import os
 from collections.abc import Iterator
 
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.core.db import dispose_engine, init_engine
 from src.core.settings import Settings, get_settings
 from src.modules.health.router import router as health_router
 from src.modules.health.service import HealthService, HealthStatus
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

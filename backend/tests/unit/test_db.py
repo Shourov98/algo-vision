@@ -22,7 +22,6 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
-
 from src.core.db import (
     dispose_engine,
     engine_status,
@@ -32,7 +31,6 @@ from src.core.db import (
     init_engine,
 )
 from src.core.settings import Settings, get_settings
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

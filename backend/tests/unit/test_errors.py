@@ -17,7 +17,6 @@ import json
 
 import pytest
 from pydantic import ValidationError
-
 from src.core.errors import (
     AppError,
     BadRequest,
@@ -34,7 +33,6 @@ from src.core.errors import (
     UserNotFound,
     ValidationFailed,
 )
-
 
 # ---------------------------------------------------------------------------
 # ErrorPayload schema

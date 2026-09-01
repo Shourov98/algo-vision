@@ -20,14 +20,11 @@ from __future__ import annotations
 import io
 import json
 import logging
-import sys
 
 import pytest
 import structlog
-
 from src.core.logging import configure_logging, log
 from src.core.settings import Settings, get_settings
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -20,9 +20,7 @@ from collections.abc import Iterator
 
 import pytest
 from pydantic import SecretStr, ValidationError
-
 from src.core.settings import Settings, get_settings
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

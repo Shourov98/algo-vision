@@ -14,7 +14,6 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from src.core.errors import NotFound, UserNotFound
 from src.core.settings import Settings, get_settings
 from src.main import create_app
