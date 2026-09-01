@@ -12,7 +12,8 @@ flow:
    analytics services can subscribe (Dependency Inversion —
    we never import them).
 4. Translate ORM rows to public responses via the schema
-   converters (B3.7).
+   converters (in ``service/_converters.py``). ORM rows
+   NEVER escape this layer (PUKU_BACKEND_AGENT §3.1).
 
 What this class does NOT own
 ----------------------------
@@ -56,19 +57,28 @@ from src.modules.catalog.filters import (
     DataStructureFilters,
     TopicFilters,
 )
-from src.modules.catalog.models import (
-    Algorithm,
-    AlgorithmCodeVersion,
-    Category,
-    DataStructure,
-    Topic,
-)
 from src.modules.catalog.repository import (
     AlgorithmCodeVersionRepositoryProtocol,
     AlgorithmRepositoryProtocol,
     CategoryRepositoryProtocol,
     DataStructureRepositoryProtocol,
     TopicRepositoryProtocol,
+)
+from src.modules.catalog.schemas import (
+    AlgorithmCodeResponse,
+    AlgorithmDetailResponse,
+    AlgorithmSummaryResponse,
+    CategoryResponse,
+    DataStructureResponse,
+    TopicResponse,
+)
+from src.modules.catalog.service._converters import (
+    algorithm_to_detail,
+    algorithm_to_summary,
+    category_to_response,
+    code_version_to_response,
+    data_structure_to_response,
+    topic_to_response,
 )
 from src.shared.events import EventDispatcherProtocol, ItemViewedEvent
 from src.shared.pagination import Page
@@ -88,24 +98,24 @@ _ITEM_TYPE_DATA_STRUCTURE = "data_structure"
 class CatalogServiceProtocol(Protocol):
     """Read-side catalog operations.
 
-    The protocol is intentionally minimal: each method maps to
-    one router endpoint in B3.8. Adding a method here is a
-    deliberate breaking change for callers — keep it stable.
+    Each method maps to one router endpoint in B3.8 and
+    returns Pydantic response objects — ORM rows never
+    escape the service layer.
     """
 
     async def list_categories(
         self, filters: CategoryFilters
-    ) -> Page[Category]: ...
+    ) -> Page[CategoryResponse]: ...
 
-    async def get_category_by_slug(self, slug: str) -> Category: ...
+    async def get_category_by_slug(self, slug: str) -> CategoryResponse: ...
 
-    async def list_topics(self, filters: TopicFilters) -> Page[Topic]: ...
+    async def list_topics(self, filters: TopicFilters) -> Page[TopicResponse]: ...
 
-    async def get_topic_by_slug(self, slug: str) -> Topic: ...
+    async def get_topic_by_slug(self, slug: str) -> TopicResponse: ...
 
     async def list_algorithms(
         self, filters: AlgorithmFilters
-    ) -> Page[Algorithm]: ...
+    ) -> Page[AlgorithmSummaryResponse]: ...
 
     async def get_algorithm_by_slug(
         self,
@@ -113,23 +123,25 @@ class CatalogServiceProtocol(Protocol):
         user_id: UUID | None = None,
         *,
         include_unpublished: bool = False,
-    ) -> Algorithm: ...
+    ) -> AlgorithmDetailResponse: ...
 
     async def get_current_code(
         self,
         algorithm_id: UUID,
         language: str,
-    ) -> AlgorithmCodeVersion: ...
+    ) -> AlgorithmCodeResponse: ...
 
     async def list_code_versions(
         self, filters: AlgorithmCodeVersionFilters
-    ) -> Page[AlgorithmCodeVersion]: ...
+    ) -> Page[AlgorithmCodeResponse]: ...
 
     async def list_data_structures(
         self, filters: DataStructureFilters
-    ) -> Page[DataStructure]: ...
+    ) -> Page[DataStructureResponse]: ...
 
-    async def get_data_structure_by_slug(self, slug: str) -> DataStructure: ...
+    async def get_data_structure_by_slug(
+        self, slug: str
+    ) -> DataStructureResponse: ...
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +157,15 @@ class CatalogService:
     pass AsyncMock-backed fakes; the production wiring
     (B3.8 dependency factory) passes the concrete repos with
     the request-scoped session.
+
+    Why one service, not five
+    -------------------------
+    The catalog domain is small and reads are uniformly shaped
+    (list-with-filters OR get-by-slug). Splitting into one
+    service per entity would just multiply constructor
+    injection without adding testability — repositories are
+    already isolated, so this layer's only job is glue + event
+    dispatch. One class keeps the wiring simple.
     """
 
     def __init__(
@@ -169,31 +190,41 @@ class CatalogService:
 
     async def list_categories(
         self, filters: CategoryFilters
-    ) -> Page[Category]:
-        """List algorithm categories matching ``filters``."""
-        return await self._categories.list(filters)
+    ) -> Page[CategoryResponse]:
+        page = await self._categories.list(filters)
+        return Page(
+            items=[category_to_response(c) for c in page.items],
+            page=page.page,
+            page_size=page.page_size,
+            total=page.total,
+        )
 
-    async def get_category_by_slug(self, slug: str) -> Category:
-        """Return the category with ``slug`` or raise 404."""
+    async def get_category_by_slug(self, slug: str) -> CategoryResponse:
         category = await self._categories.get_by_slug(slug)
         if category is None:
             raise CategoryNotFound(
                 f"No algorithm category with slug {slug!r}.",
             )
-        return category
+        return category_to_response(category)
 
     # ------------------------------------------------------------------
     # Topics
     # ------------------------------------------------------------------
 
-    async def list_topics(self, filters: TopicFilters) -> Page[Topic]:
-        return await self._topics.list(filters)
+    async def list_topics(self, filters: TopicFilters) -> Page[TopicResponse]:
+        page = await self._topics.list(filters)
+        return Page(
+            items=[topic_to_response(t) for t in page.items],
+            page=page.page,
+            page_size=page.page_size,
+            total=page.total,
+        )
 
-    async def get_topic_by_slug(self, slug: str) -> Topic:
+    async def get_topic_by_slug(self, slug: str) -> TopicResponse:
         topic = await self._topics.get_by_slug(slug)
         if topic is None:
             raise TopicNotFound(f"No topic with slug {slug!r}.")
-        return topic
+        return topic_to_response(topic)
 
     # ------------------------------------------------------------------
     # Algorithms
@@ -201,14 +232,20 @@ class CatalogService:
 
     async def list_algorithms(
         self, filters: AlgorithmFilters
-    ) -> Page[Algorithm]:
+    ) -> Page[AlgorithmSummaryResponse]:
         """List algorithms matching ``filters``.
 
         The default ``is_published=True`` filter is encoded in
         ``AlgorithmFilters``; callers that need to see drafts
         build a filters object with ``is_published=False``.
         """
-        return await self._algorithms.list(filters)
+        page = await self._algorithms.list(filters)
+        return Page(
+            items=[algorithm_to_summary(a) for a in page.items],
+            page=page.page,
+            page_size=page.page_size,
+            total=page.total,
+        )
 
     async def get_algorithm_by_slug(
         self,
@@ -216,8 +253,8 @@ class CatalogService:
         user_id: UUID | None = None,
         *,
         include_unpublished: bool = False,
-    ) -> Algorithm:
-        """Return the algorithm with ``slug`` or raise 404.
+    ) -> AlgorithmDetailResponse:
+        """Return the algorithm with ``slug`` or raise 404/403.
 
         Public consumers only see ``is_published=True`` rows.
         Draft visibility is reserved for a future staff role
@@ -231,14 +268,16 @@ class CatalogService:
         in Phase 5) may update recent-items or counters. We
         do NOT await handler side effects: dispatch is
         fire-and-forget relative to the read.
+
+        Note: this method does not yet embed category/topic
+        expansions or current-code — those land when the
+        detail repository helpers (with selectinload) are
+        added in B3.8.
         """
         algorithm = await self._algorithms.get_by_slug(slug)
         if algorithm is None:
             raise AlgorithmNotFound(f"No algorithm with slug {slug!r}.")
         if not algorithm.is_published and not include_unpublished:
-            # ``NotPublished`` (403) is distinct from ``NotFound``
-            # so the frontend can distinguish "exists but hidden"
-            # from "never existed".
             raise NotPublished(
                 f"Algorithm {slug!r} is not published.",
             )
@@ -251,21 +290,18 @@ class CatalogService:
                     viewed_at=datetime.now(UTC),
                 )
             )
-        return algorithm
+        return algorithm_to_detail(algorithm)
 
     async def get_current_code(
         self,
         algorithm_id: UUID,
         language: str,
-    ) -> AlgorithmCodeVersion:
+    ) -> AlgorithmCodeResponse:
         """Return the current code row for (algorithm, language).
 
         Uses the partial UNIQUE index on
         ``(algorithm_id, language) WHERE is_current = TRUE`` for
         an O(1) lookup (DATABASE_DESIGN §5).
-
-        Raises ``AlgorithmCodeVersionNotFound`` if no current
-        code exists in ``language`` for the given algorithm.
         """
         version = await self._code_versions.get_current(
             algorithm_id, language
@@ -275,12 +311,18 @@ class CatalogService:
                 f"No current code for algorithm {algorithm_id} "
                 f"in {language!r}.",
             )
-        return version
+        return code_version_to_response(version)
 
     async def list_code_versions(
         self, filters: AlgorithmCodeVersionFilters
-    ) -> Page[AlgorithmCodeVersion]:
-        return await self._code_versions.list(filters)
+    ) -> Page[AlgorithmCodeResponse]:
+        page = await self._code_versions.list(filters)
+        return Page(
+            items=[code_version_to_response(cv) for cv in page.items],
+            page=page.page,
+            page_size=page.page_size,
+            total=page.total,
+        )
 
     # ------------------------------------------------------------------
     # Data structures
@@ -288,14 +330,20 @@ class CatalogService:
 
     async def list_data_structures(
         self, filters: DataStructureFilters
-    ) -> Page[DataStructure]:
-        return await self._data_structures.list(filters)
+    ) -> Page[DataStructureResponse]:
+        page = await self._data_structures.list(filters)
+        return Page(
+            items=[data_structure_to_response(ds) for ds in page.items],
+            page=page.page,
+            page_size=page.page_size,
+            total=page.total,
+        )
 
     async def get_data_structure_by_slug(
         self,
         slug: str,
         user_id: UUID | None = None,
-    ) -> DataStructure:
+    ) -> DataStructureResponse:
         """Return the data structure with ``slug`` or raise 404.
 
         Dispatches ``ItemViewedEvent`` with ``item_type=
@@ -317,7 +365,7 @@ class CatalogService:
                     viewed_at=datetime.now(UTC),
                 )
             )
-        return ds
+        return data_structure_to_response(ds)
 
 
 __all__ = [
