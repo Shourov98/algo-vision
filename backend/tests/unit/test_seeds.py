@@ -36,7 +36,9 @@ from src.modules.catalog.models.algorithm import DIFFICULTY_VALUES
 from src.seeds.algorithm_code_versions_data import CODE_VERSIONS
 from src.seeds.algorithms_data import ALGORITHMS
 from src.seeds.categories import CATEGORIES
+from src.seeds.companies import COMPANIES
 from src.seeds.data_structures import DATA_STRUCTURES
+from src.seeds.problems_data import PROBLEMS
 from src.seeds.topics import TOPICS
 
 # ---------------------------------------------------------------------------
@@ -230,6 +232,105 @@ def test_smoke_known_algorithms_are_seeded(slug: str) -> None:
     future seed edit, this test fails loudly.
     """
     seeded = {a.slug for a in ALGORITHMS}
+    assert slug in seeded
+
+
+# ---------------------------------------------------------------------------
+# B4.10 — problems + companies seeds
+# ---------------------------------------------------------------------------
+
+
+def test_company_slugs_are_valid() -> None:
+    for c in COMPANIES:
+        assert _is_valid_slug(c.slug, max_len=64), c.slug
+
+
+def test_company_slugs_are_unique() -> None:
+    slugs = [c.slug for c in COMPANIES]
+    assert len(slugs) == len(set(slugs))
+
+
+def test_problem_slugs_are_valid() -> None:
+    for p in PROBLEMS:
+        assert _is_valid_slug(p.slug), p.slug
+
+
+def test_problem_slugs_are_unique() -> None:
+    slugs = [p.slug for p in PROBLEMS]
+    assert len(slugs) == len(set(slugs))
+
+
+def test_problem_difficulty_is_in_vocabulary() -> None:
+    from src.modules.problems.models import DIFFICULTY_VALUES
+
+    for p in PROBLEMS:
+        assert p.difficulty in DIFFICULTY_VALUES, (
+            f"{p.slug}: difficulty={p.difficulty!r} not in {DIFFICULTY_VALUES}"
+        )
+
+
+def test_every_problem_topic_is_known() -> None:
+    known = {t.slug for t in TOPICS}
+    for p in PROBLEMS:
+        for topic_slug in p.topic_slugs:
+            assert topic_slug in known, (
+                f"problem {p.slug!r} references unknown topic "
+                f"{topic_slug!r}"
+            )
+
+
+def test_every_problem_topic_is_unique_within_problem() -> None:
+    for p in PROBLEMS:
+        assert len(p.topic_slugs) == len(set(p.topic_slugs)), (
+            f"problem {p.slug!r} has duplicate topic slugs: "
+            f"{p.topic_slugs}"
+        )
+
+
+def test_every_problem_company_is_known() -> None:
+    known = {c.slug for c in COMPANIES}
+    for p in PROBLEMS:
+        for company_slug in p.company_slugs:
+            assert company_slug in known, (
+                f"problem {p.slug!r} references unknown company "
+                f"{company_slug!r}"
+            )
+
+
+def test_every_problem_company_is_unique_within_problem() -> None:
+    for p in PROBLEMS:
+        assert len(p.company_slugs) == len(set(p.company_slugs)), (
+            f"problem {p.slug!r} has duplicate company slugs: "
+            f"{p.company_slugs}"
+        )
+
+
+@pytest.mark.parametrize(
+    "slug",
+    [
+        "two-sum",
+        "reverse-linked-list",
+        "valid-parentheses",
+        "merge-k-sorted-lists",
+        "lru-cache",
+        "longest-substring-without-repeating-characters",
+        "minimum-window-substring",
+        "course-schedule",
+        "n-queens",
+        "word-break",
+        "trapping-rain-water",
+        "median-of-two-sorted-arrays",
+    ],
+)
+def test_smoke_known_problems_are_seeded(slug: str) -> None:
+    """Smoke: the canonical interview problems are seeded.
+
+    These are the problems the frontend visualisations and
+    the detail-page screenshots will reference. If someone
+    removes one of them in a future seed edit, this test
+    fails loudly.
+    """
+    seeded = {p.slug for p in PROBLEMS}
     assert slug in seeded
 
 

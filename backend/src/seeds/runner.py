@@ -59,7 +59,12 @@ from src.seeds.categories import (
     existing_category_slugs,
     seed_categories,
 )
+from src.seeds.companies import (
+    existing_company_slugs,
+    seed_companies,
+)
 from src.seeds.data_structures import seed_data_structures
+from src.seeds.problems import seed_problems
 from src.seeds.topics import (
     existing_topic_slugs,
     seed_topics,
@@ -159,6 +164,25 @@ async def run_seeds() -> None:
             lambda s: seed_algorithm_code_versions(
                 s,
                 known_algorithm_slugs=algorithm_slugs,
+            ),
+            session,
+        )
+
+        # ---- Companies (independent) ------------------------------------
+        await _run_step(
+            "companies",
+            seed_companies,
+            session,
+        )
+        company_slugs = await existing_company_slugs(session)
+
+        # ---- Problems (depends on topics + companies) ------------------
+        await _run_step(
+            "problems",
+            lambda s: seed_problems(
+                s,
+                known_company_slugs=company_slugs,
+                known_topic_slugs=topic_slugs,
             ),
             session,
         )

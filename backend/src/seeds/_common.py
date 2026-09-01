@@ -57,6 +57,8 @@ _NAMESPACE_DATA_STRUCTURE = uuid.UUID(
 _NAMESPACE_CODE_VERSION = uuid.UUID(
     "1a2b3c4d-5e6f-4789-8abc-def012345678"
 )
+_NAMESPACE_PROBLEM = uuid.UUID("2c4e6a8b-0d1f-4a3c-9e5b-7d9f1b3d5f7a")
+_NAMESPACE_COMPANY = uuid.UUID("4e6a8c0d-1f3b-4d5e-9a7c-1b3d5f7a9c0e")
 
 # Public aliases (without the leading underscore) so callers
 # can import them via ``from src.seeds._common import NAMESPACE_CATEGORY``.
@@ -65,6 +67,8 @@ NAMESPACE_TOPIC = _NAMESPACE_TOPIC
 NAMESPACE_ALGORITHM = _NAMESPACE_ALGORITHM
 NAMESPACE_DATA_STRUCTURE = _NAMESPACE_DATA_STRUCTURE
 NAMESPACE_CODE_VERSION = _NAMESPACE_CODE_VERSION
+NAMESPACE_PROBLEM = _NAMESPACE_PROBLEM
+NAMESPACE_COMPANY = _NAMESPACE_COMPANY
 
 
 def deterministic_uuid(namespace: uuid.UUID, key: str) -> uuid.UUID:
@@ -134,7 +138,9 @@ __all__ = [
     "NAMESPACE_ALGORITHM",
     "NAMESPACE_CATEGORY",
     "NAMESPACE_CODE_VERSION",
+    "NAMESPACE_COMPANY",
     "NAMESPACE_DATA_STRUCTURE",
+    "NAMESPACE_PROBLEM",
     "NAMESPACE_TOPIC",
     "SeedCounts",
     "deterministic_uuid",
