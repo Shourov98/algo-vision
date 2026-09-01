@@ -582,6 +582,7 @@ def test_alembic_heads_returns_latest_migration() -> None:
             "5c6d7e8f9a0b",
             "8f9a0b1c2d3e",
             "9a0b1c2d3e4f",
+            "0b1c2d3e4f5a",
         )
     )
 
@@ -667,3 +668,103 @@ def test_create_data_structures_downgrade_drops_table() -> None:
     env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
     _, output = _alembic("downgrade", "head:base", "--sql", env=env)
     assert re.search(r"DROP TABLE\s+data_structures", output)
+
+
+# ---------------------------------------------------------------------------
+# B3.3 — create_algorithm_code_versions
+# ---------------------------------------------------------------------------
+
+
+def test_create_algorithm_code_versions_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_algorithm_code_versions.py"))
+    assert files, "create_algorithm_code_versions migration is missing"
+
+
+def test_algorithm_code_versions_depends_on_data_structures() -> None:
+    """Per DATABASE_DESIGN §6, 0006 depends on 0008 (last B3.x rev so far).
+
+    The migration chain follows the §6 plan order: 0003 topics, 0004
+    algorithm_categories, 0005 algorithms, 0008 data_structures,
+    0006 algorithm_code_versions, 0007 algorithm_topics. We pick the
+    immediately previous migration (data_structures, B3.2) as
+    down_revision — algorithm_code_versions logically lives in
+    the algorithm branch of the catalog and doesn't need
+    data_structures to exist, but following the §6 ordering keeps
+    the chain linear and avoids surprises later.
+    """
+    cv_files = list(VERSIONS_DIR.glob("*_create_algorithm_code_versions.py"))
+    ds_files = list(VERSIONS_DIR.glob("*_create_data_structures.py"))
+    assert cv_files and ds_files
+
+    ds_text = ds_files[0].read_text()
+    ds_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', ds_text, re.MULTILINE
+    )
+    assert ds_rev_match
+    ds_rev = ds_rev_match.group(1)
+
+    cv_text = cv_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        cv_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == ds_rev
+
+
+def test_create_algorithm_code_versions_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(
+        r"CREATE TABLE algorithm_code_versions \((.*?)\);", output, re.DOTALL
+    )
+    assert match, "algorithm_code_versions CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in (
+        "id",
+        "algorithm_id",
+        "language",
+        "source_code",
+        "version",
+        "is_current",
+        "created_at",
+    ):
+        assert col in ddl, f"missing column {col} in algorithm_code_versions DDL"
+
+
+def test_create_algorithm_code_versions_has_unique_algo_lang_version() -> None:
+    """UNIQUE (algorithm_id, language, version) per DATABASE_DESIGN §4.3."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(
+        r"CREATE TABLE algorithm_code_versions \((.*?)\);", output, re.DOTALL
+    )
+    assert match
+    assert "uq_algorithm_code_versions_algo_lang_version" in match.group(0)
+
+
+def test_create_algorithm_code_versions_has_partial_unique_current() -> None:
+    """Partial UNIQUE index WHERE is_current enforces exactly-one-current."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert "uq_algorithm_code_versions_algo_lang_current" in output
+    assert "WHERE is_current = TRUE" in output
+
+
+def test_create_algorithm_code_versions_fk_is_cascade() -> None:
+    """DATABASE_DESIGN §4.2: FK must CASCADE."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(
+        r"CREATE TABLE algorithm_code_versions \((.*?)\);", output, re.DOTALL
+    )
+    assert match
+    assert "REFERENCES algorithms" in match.group(0)
+    assert "ON DELETE CASCADE" in match.group(0)
+
+
+def test_create_algorithm_code_versions_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+algorithm_code_versions", output)

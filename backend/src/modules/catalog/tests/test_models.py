@@ -33,6 +33,7 @@ from src.core.db import Base
 from src.modules.catalog.models import (
     DIFFICULTY_VALUES,
     Algorithm,
+    AlgorithmCodeVersion,
     Category,
     DataStructure,
     Topic,
@@ -60,6 +61,10 @@ def test_data_structure_tablename() -> None:
     assert DataStructure.__tablename__ == "data_structures"
 
 
+def test_algorithm_code_version_tablename() -> None:
+    assert AlgorithmCodeVersion.__tablename__ == "algorithm_code_versions"
+
+
 def test_models_are_registered_with_base() -> None:
     """Models must be discoverable by Alembic's target_metadata.
 
@@ -73,6 +78,7 @@ def test_models_are_registered_with_base() -> None:
     assert "topics" in table_names
     assert "algorithms" in table_names
     assert "data_structures" in table_names
+    assert "algorithm_code_versions" in table_names
 
 
 def test_category_columns() -> None:
@@ -125,6 +131,19 @@ def test_data_structure_columns() -> None:
     }
 
 
+def test_algorithm_code_version_columns() -> None:
+    names = {c.name for c in _table(AlgorithmCodeVersion).columns}
+    assert names == {
+        "id",
+        "algorithm_id",
+        "language",
+        "source_code",
+        "version",
+        "is_current",
+        "created_at",
+    }
+
+
 def _columns_by_name(model: type) -> dict[str, Column[object]]:
     return {c.name: c for c in _table(model).columns}
 
@@ -170,6 +189,19 @@ def test_data_structure_required_columns() -> None:
         assert not cols[required].nullable, f"{required} must be NOT NULL"
 
 
+def test_algorithm_code_version_required_columns() -> None:
+    cols = _columns_by_name(AlgorithmCodeVersion)
+    for required in (
+        "algorithm_id",
+        "language",
+        "source_code",
+        "version",
+        "is_current",
+        "created_at",
+    ):
+        assert not cols[required].nullable, f"{required} must be NOT NULL"
+
+
 def _unique_constraints(model: type) -> list[UniqueConstraint]:
     return [c for c in _table(model).constraints if isinstance(c, UniqueConstraint)]
 
@@ -194,6 +226,15 @@ def test_data_structure_unique_constraints() -> None:
     assert ("slug",) in cols
 
 
+def test_algorithm_code_version_unique_constraints() -> None:
+    """UNIQUE (algorithm_id, language, version) per DATABASE_DESIGN §4.3."""
+    cols = [
+        tuple(uc.columns.keys())
+        for uc in _unique_constraints(AlgorithmCodeVersion)
+    ]
+    assert ("algorithm_id", "language", "version") in cols
+
+
 def _foreign_keys(model: type) -> list[ForeignKey]:
     return list(_table(model).foreign_keys)
 
@@ -213,6 +254,28 @@ def test_algorithm_fk_uses_restrict_on_delete() -> None:
     )
     assert fk.ondelete == "RESTRICT", (
         "category FK must be RESTRICT to prevent orphaning published algorithms"
+    )
+
+
+def test_algorithm_code_version_fk_declaration() -> None:
+    """algorithm_id must be a FK to algorithms.id."""
+    targets = {
+        (fk.column.table.name, fk.column.key)
+        for fk in _foreign_keys(AlgorithmCodeVersion)
+    }
+    assert ("algorithms", "id") in targets
+
+
+def test_algorithm_code_version_fk_uses_cascade_on_delete() -> None:
+    """DATABASE_DESIGN §4.2 mandates CASCADE on algorithm_code_versions FK."""
+    fk = next(
+        fk
+        for fk in _foreign_keys(AlgorithmCodeVersion)
+        if fk.column.table.name == "algorithms"
+    )
+    assert fk.ondelete == "CASCADE", (
+        "algorithm_code_versions FK must CASCADE — versions are "
+        "useless without their parent algorithm"
     )
 
 
@@ -261,11 +324,25 @@ def test_data_structure_repr_is_identity_only() -> None:
     assert "Linked List" not in repr(ds)
 
 
+def test_algorithm_code_version_repr_is_identity_only() -> None:
+    cv = AlgorithmCodeVersion(
+        algorithm_id="00000000-0000-0000-0000-000000000000",
+        language="python",
+        source_code="def quicksort(arr): ...",
+        version=1,
+    )
+    text = repr(cv)
+    assert "python" not in text
+    assert "quicksort(arr)" not in text
+
+
 def test_models_are_distinct_types() -> None:
-    """All four catalog models must not collide in the registry."""
+    """All five catalog models must not collide in the registry."""
     assert Category is not Topic
     assert Topic is not Algorithm
     assert Category is not Algorithm
     assert DataStructure is not Algorithm
     assert DataStructure is not Category
     assert DataStructure is not Topic
+    assert AlgorithmCodeVersion is not Algorithm
+    assert AlgorithmCodeVersion is not DataStructure
