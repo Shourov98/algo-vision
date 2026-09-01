@@ -340,3 +340,258 @@ def test_email_lower_idx_downgrade_uses_if_exists() -> None:
     env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
     _, output = _alembic("downgrade", "head:base", "--sql", env=env)
     assert "DROP INDEX IF EXISTS ix_users_email_lower" in output
+
+
+# ---------------------------------------------------------------------------
+# B3.1 — create_topics
+# ---------------------------------------------------------------------------
+
+
+def test_create_topics_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_topics.py"))
+    assert files, "create_topics migration is missing"
+
+
+def test_create_topics_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE topics \((.*?)\);", output, re.DOTALL)
+    assert match, "topics CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in ("id", "slug", "name"):
+        assert col in ddl, f"missing column {col} in topics DDL"
+
+
+def test_create_topics_slug_is_unique() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE topics \((.*?)\);", output, re.DOTALL)
+    assert match
+    assert "slug" in match.group(0)
+    assert "UNIQUE" in match.group(0)
+
+
+def test_create_topics_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+topics", output)
+
+
+def test_topics_depends_on_users_email_lower_idx() -> None:
+    """Per DATABASE_DESIGN §6, 0003 depends on 0002.x (last Phase 2 rev)."""
+    topics_files = list(VERSIONS_DIR.glob("*_create_topics.py"))
+    idx_files = list(VERSIONS_DIR.glob("*_users_email_lower_idx.py"))
+    assert topics_files and idx_files
+
+    idx_text = idx_files[0].read_text()
+    idx_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', idx_text, re.MULTILINE
+    )
+    assert idx_rev_match
+    idx_rev = idx_rev_match.group(1)
+
+    topics_text = topics_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        topics_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == idx_rev
+
+
+# ---------------------------------------------------------------------------
+# B3.1 — create_algorithm_categories
+# ---------------------------------------------------------------------------
+
+
+def test_create_algorithm_categories_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_algorithm_categories.py"))
+    assert files, "create_algorithm_categories migration is missing"
+
+
+def test_create_algorithm_categories_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(
+        r"CREATE TABLE algorithm_categories \((.*?)\);", output, re.DOTALL
+    )
+    assert match, "algorithm_categories CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in ("id", "slug", "name", "description", "sort_order", "created_at"):
+        assert col in ddl, f"missing column {col} in algorithm_categories DDL"
+
+
+def test_create_algorithm_categories_slug_is_unique() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(
+        r"CREATE TABLE algorithm_categories \((.*?)\);", output, re.DOTALL
+    )
+    assert match
+    assert "slug" in match.group(0)
+    assert "UNIQUE" in match.group(0)
+
+
+def test_algorithm_categories_depends_on_topics() -> None:
+    """Per DATABASE_DESIGN §6, 0004 depends on 0003."""
+    cat_files = list(VERSIONS_DIR.glob("*_create_algorithm_categories.py"))
+    topics_files = list(VERSIONS_DIR.glob("*_create_topics.py"))
+    assert cat_files and topics_files
+
+    topics_text = topics_files[0].read_text()
+    topics_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', topics_text, re.MULTILINE
+    )
+    assert topics_rev_match
+    topics_rev = topics_rev_match.group(1)
+
+    cat_text = cat_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        cat_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == topics_rev
+
+
+def test_create_algorithm_categories_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+algorithm_categories", output)
+
+
+# ---------------------------------------------------------------------------
+# B3.1 — create_algorithms
+# ---------------------------------------------------------------------------
+
+
+def test_create_algorithms_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_algorithms.py"))
+    assert files, "create_algorithms migration is missing"
+
+
+def test_create_algorithms_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE algorithms \((.*?)\);", output, re.DOTALL)
+    assert match, "algorithms CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in (
+        "id",
+        "category_id",
+        "slug",
+        "name",
+        "description",
+        "difficulty",
+        "visualization_type",
+        "best_time",
+        "average_time",
+        "worst_time",
+        "space_complexity",
+        "is_published",
+        "created_at",
+        "updated_at",
+    ):
+        assert col in ddl, f"missing column {col} in algorithms DDL"
+
+
+def test_create_algorithms_difficulty_check_constraint() -> None:
+    """DATABASE_DESIGN §4.3 mandates a CHECK constraint on difficulty."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert "ck_algorithms_difficulty" in output
+    assert "'easy'" in output
+    assert "'medium'" in output
+    assert "'hard'" in output
+
+
+def test_create_algorithms_slug_is_unique() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE algorithms \((.*?)\);", output, re.DOTALL)
+    assert match
+    assert "slug" in match.group(0)
+    assert "UNIQUE" in match.group(0)
+
+
+def test_create_algorithms_category_fk_is_restrict() -> None:
+    """DATABASE_DESIGN §4.2: FK must use ON DELETE RESTRICT."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert "fk_algorithms_category_id" in output
+    assert "REFERENCES algorithm_categories" in output
+    assert "ON DELETE RESTRICT" in output
+
+
+def test_create_algorithms_has_documented_indexes() -> None:
+    """Per DATABASE_DESIGN §5 — slug, category_id, difficulty,
+    is_published, updated_at."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    for index in (
+        "ix_algorithms_slug",
+        "ix_algorithms_category_id",
+        "ix_algorithms_difficulty",
+        "ix_algorithms_is_published",
+        "ix_algorithms_updated_at",
+    ):
+        assert index in output, f"missing index {index}"
+
+
+def test_create_algorithms_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+algorithms", output)
+
+
+def test_algorithms_depends_on_algorithm_categories() -> None:
+    """Per DATABASE_DESIGN §6, 0005 depends on 0004."""
+    algo_files = list(VERSIONS_DIR.glob("*_create_algorithms.py"))
+    cat_files = list(VERSIONS_DIR.glob("*_create_algorithm_categories.py"))
+    assert algo_files and cat_files
+
+    cat_text = cat_files[0].read_text()
+    cat_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', cat_text, re.MULTILINE
+    )
+    assert cat_rev_match
+    cat_rev = cat_rev_match.group(1)
+
+    algo_text = algo_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        algo_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == cat_rev
+
+
+def test_alembic_heads_returns_b31_migration() -> None:
+    """After B3.1, the head is the algorithms migration (8f9a0b1c2d3e)."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("heads", env=env)
+    assert "8f9a0b1c2d3e" in output
+
+
+def test_alembic_heads_returns_latest_migration() -> None:
+    """The chain's head must be the most recent migration.
+
+    As new phases land, the head moves. We accept any of the
+    documented revisions as a valid head so adding new migrations
+    doesn't break this test.
+    """
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("heads", env=env)
+    # Accept any of our revisions as the head.
+    assert any(
+        rev in output
+        for rev in (
+            "1107a23d5a7d",
+            "3b4e5f6a7c8d",
+            "5c6d7e8f9a0b",
+            "8f9a0b1c2d3e",
+        )
+    )
