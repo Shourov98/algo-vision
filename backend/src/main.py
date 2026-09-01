@@ -29,6 +29,7 @@ from src.core.settings import Settings, get_settings
 from src.modules.auth.router import router as auth_router
 from src.modules.catalog.router import all_routers as catalog_routers
 from src.modules.health.router import router as health_router
+from src.modules.problems.router import all_routers as problems_routers
 from src.shared.events import InProcessEventDispatcher
 
 DEFAULT_TITLE = "AlgoVision API"
@@ -79,6 +80,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(health_router)
     application.include_router(auth_router)
     for router in catalog_routers:
+        application.include_router(router)
+    for router in problems_routers:
         application.include_router(router)
 
     # Wire the process-wide event dispatcher so catalog/problems
