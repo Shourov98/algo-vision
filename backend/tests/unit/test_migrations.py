@@ -200,23 +200,6 @@ def test_alembic_history_lists_both_migrations() -> None:
     assert "create_users" in output
 
 
-def test_alembic_heads_returns_latest_migration() -> None:
-    """The chain's head must be the most recent migration.
-
-    After Phase 2 adds ``create_refresh_tokens``, the head is
-    that migration. We accept any of the documented revisions as
-    a valid head, so adding new migrations doesn't break this
-    test.
-    """
-    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
-    _, output = _alembic("heads", env=env)
-    # Accept any of our revisions as the head.
-    assert any(
-        rev in output
-        for rev in ("1107a23d5a7d", "3b4e5f6a7c8d", "5c6d7e8f9a0b")
-    )
-
-
 # ---------------------------------------------------------------------------
 # refresh_tokens (B2.4)
 # ---------------------------------------------------------------------------
@@ -570,9 +553,14 @@ def test_algorithms_depends_on_algorithm_categories() -> None:
 
 
 def test_alembic_heads_returns_b31_migration() -> None:
-    """After B3.1, the head is the algorithms migration (8f9a0b1c2d3e)."""
+    """B3.1's algorithms migration is in the chain (8f9a0b1c2d3e).
+
+    We don't assert it as the head — that role moves with each
+    subsequent migration. We just confirm the revision is in the
+    graph.
+    """
     env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
-    _, output = _alembic("heads", env=env)
+    _, output = _alembic("history", env=env)
     assert "8f9a0b1c2d3e" in output
 
 
@@ -593,5 +581,89 @@ def test_alembic_heads_returns_latest_migration() -> None:
             "3b4e5f6a7c8d",
             "5c6d7e8f9a0b",
             "8f9a0b1c2d3e",
+            "9a0b1c2d3e4f",
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# B3.2 — create_data_structures
+# ---------------------------------------------------------------------------
+
+
+def test_create_data_structures_migration_exists() -> None:
+    files = list(VERSIONS_DIR.glob("*_create_data_structures.py"))
+    assert files, "create_data_structures migration is missing"
+
+
+def test_data_structures_depends_on_algorithms() -> None:
+    """Per DATABASE_DESIGN §6, 0008 depends on 0005 (algorithms)."""
+    ds_files = list(VERSIONS_DIR.glob("*_create_data_structures.py"))
+    algo_files = list(VERSIONS_DIR.glob("*_create_algorithms.py"))
+    assert ds_files and algo_files
+
+    algo_text = algo_files[0].read_text()
+    algo_rev_match = re.search(
+        r'^revision:\s*str\s*=\s*["\']([^"\']+)["\']', algo_text, re.MULTILINE
+    )
+    assert algo_rev_match
+    algo_rev = algo_rev_match.group(1)
+
+    ds_text = ds_files[0].read_text()
+    down_rev_match = re.search(
+        r'^down_revision:\s*[^=]+=\s*["\']([^"\']+)["\']',
+        ds_text,
+        re.MULTILINE,
+    )
+    assert down_rev_match
+    assert down_rev_match.group(1) == algo_rev
+
+
+def test_create_data_structures_emits_correct_schema() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE data_structures \((.*?)\);", output, re.DOTALL)
+    assert match, "data_structures CREATE TABLE not found"
+    ddl = match.group(0)
+    for col in (
+        "id",
+        "slug",
+        "name",
+        "description",
+        "difficulty",
+        "visualization_type",
+        "created_at",
+    ):
+        assert col in ddl, f"missing column {col} in data_structures DDL"
+
+
+def test_create_data_structures_difficulty_check_constraint() -> None:
+    """DATABASE_DESIGN §4.3 mandates a CHECK on data_structures.difficulty."""
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    assert "ck_data_structures_difficulty" in output
+    assert "'easy'" in output
+    assert "'medium'" in output
+    assert "'hard'" in output
+
+
+def test_create_data_structures_slug_is_unique() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    match = re.search(r"CREATE TABLE data_structures \((.*?)\);", output, re.DOTALL)
+    assert match
+    assert "slug" in match.group(0)
+    assert "UNIQUE" in match.group(0)
+
+
+def test_create_data_structures_has_documented_indexes() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("upgrade", "head", "--sql", env=env)
+    for index in ("ix_data_structures_slug", "ix_data_structures_difficulty"):
+        assert index in output, f"missing index {index}"
+
+
+def test_create_data_structures_downgrade_drops_table() -> None:
+    env = {"DATABASE_URL_SYNC": "postgresql+psycopg2://user:pw@localhost/db"}
+    _, output = _alembic("downgrade", "head:base", "--sql", env=env)
+    assert re.search(r"DROP TABLE\s+data_structures", output)

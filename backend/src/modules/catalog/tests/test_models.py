@@ -34,6 +34,7 @@ from src.modules.catalog.models import (
     DIFFICULTY_VALUES,
     Algorithm,
     Category,
+    DataStructure,
     Topic,
 )
 
@@ -55,6 +56,10 @@ def test_algorithm_tablename() -> None:
     assert Algorithm.__tablename__ == "algorithms"
 
 
+def test_data_structure_tablename() -> None:
+    assert DataStructure.__tablename__ == "data_structures"
+
+
 def test_models_are_registered_with_base() -> None:
     """Models must be discoverable by Alembic's target_metadata.
 
@@ -67,6 +72,7 @@ def test_models_are_registered_with_base() -> None:
     assert "algorithm_categories" in table_names
     assert "topics" in table_names
     assert "algorithms" in table_names
+    assert "data_structures" in table_names
 
 
 def test_category_columns() -> None:
@@ -106,6 +112,19 @@ def test_algorithm_columns() -> None:
     }
 
 
+def test_data_structure_columns() -> None:
+    names = {c.name for c in _table(DataStructure).columns}
+    assert names == {
+        "id",
+        "slug",
+        "name",
+        "description",
+        "difficulty",
+        "visualization_type",
+        "created_at",
+    }
+
+
 def _columns_by_name(model: type) -> dict[str, Column[object]]:
     return {c.name: c for c in _table(model).columns}
 
@@ -139,6 +158,18 @@ def test_algorithm_required_columns() -> None:
         assert not cols[required].nullable, f"{required} must be NOT NULL"
 
 
+def test_data_structure_required_columns() -> None:
+    cols = _columns_by_name(DataStructure)
+    for required in (
+        "slug",
+        "name",
+        "difficulty",
+        "visualization_type",
+        "created_at",
+    ):
+        assert not cols[required].nullable, f"{required} must be NOT NULL"
+
+
 def _unique_constraints(model: type) -> list[UniqueConstraint]:
     return [c for c in _table(model).constraints if isinstance(c, UniqueConstraint)]
 
@@ -155,6 +186,11 @@ def test_topic_unique_constraints() -> None:
 
 def test_algorithm_unique_constraints() -> None:
     cols = [tuple(uc.columns.keys()) for uc in _unique_constraints(Algorithm)]
+    assert ("slug",) in cols
+
+
+def test_data_structure_unique_constraints() -> None:
+    cols = [tuple(uc.columns.keys()) for uc in _unique_constraints(DataStructure)]
     assert ("slug",) in cols
 
 
@@ -214,8 +250,22 @@ def test_algorithm_repr_is_identity_only() -> None:
     assert "Quick Sort" not in repr(a)
 
 
+def test_data_structure_repr_is_identity_only() -> None:
+    ds = DataStructure(
+        slug="linked-list",
+        name="Linked List",
+        difficulty="easy",
+        visualization_type="linked-list",
+    )
+    assert "linked-list" not in repr(ds)
+    assert "Linked List" not in repr(ds)
+
+
 def test_models_are_distinct_types() -> None:
-    """Category, Topic, and Algorithm must not collide in the registry."""
+    """All four catalog models must not collide in the registry."""
     assert Category is not Topic
     assert Topic is not Algorithm
     assert Category is not Algorithm
+    assert DataStructure is not Algorithm
+    assert DataStructure is not Category
+    assert DataStructure is not Topic

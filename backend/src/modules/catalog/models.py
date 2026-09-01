@@ -1,25 +1,18 @@
 """SQLAlchemy 2.x mapped classes for the catalog domain.
 
-Three tables land in B3.1:
+Tables added across Phase 3:
 
-- ``algorithm_categories`` — top-level groupings (Sorting, Graph, DP, ...).
-  Parent of ``algorithms``.
-- ``topics`` — reusable tags ("hash-map", "recursion", "two-pointers",
-  ...) shared between algorithms and problems (Phase 4).
-- ``algorithms`` — the catalog of algorithms with complexity metadata,
-  difficulty, visualization_type, and an ``is_published`` gate for
-  admin-only draft content.
+- ``algorithm_categories`` — top-level groupings (B3.1).
+- ``topics`` — reusable tags (B3.1).
+- ``algorithms`` — catalog with complexity metadata (B3.1).
+- ``data_structures`` — sibling catalog: linked list, hash map,
+  tree, etc. (B3.2).
+- ``algorithm_topics`` — M:N between algorithms and topics (B3.4).
+- ``algorithm_code_versions`` — per-language, per-algorithm source
+  code with version numbers (B3.3).
 
-Why these three land together
------------------------------
-They form a tight cluster with strict FK dependencies:
-
-    algorithm_categories ── algorithms
-    topics (standalone here; M:N table comes in B3.4)
-
-The database-design plan calls them out as 0003-0005 in order
-(DATABASE_DESIGN.md §6). Lumping them into one ticket keeps the
-shared M:N table (B3.4) on a known-good foundation.
+Why data_structures is its own table (not a polymorphic variant of
+Algorithm) is documented in the ``DataStructure`` docstring below.
 
 Style
 -----
@@ -248,9 +241,80 @@ class Algorithm(Base):
         return id(self)
 
 
+class DataStructure(Base):
+    """Catalog data structure (linked list, hash map, tree, ...).
+
+    Sibling of ``Algorithm`` — same metadata shape (slug, name,
+    description, difficulty, visualization_type) but no
+    algorithmic complexity columns. Complexity for data structures
+    lives on ``data_structure_operations`` (per-operation rows),
+    landing in a later phase.
+
+    Why a separate table, not a column on Algorithm
+    -----------------------------------------------
+    Per DATABASE_DESIGN §1: algorithms and data structures are
+    distinct catalog kinds with different metadata. Treating them
+    as one polymorphic table would force a nullable column for
+    every metadata field that's unique to the other kind.
+    """
+
+    __tablename__ = "data_structures"
+
+    # ----- Identity ---------------------------------------------------------
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+
+    # ----- Display ----------------------------------------------------------
+    slug: Mapped[str] = mapped_column(
+        String(96),
+        nullable=False,
+        unique=True,
+    )
+    name: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+    )
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # ----- Difficulty (CHECK-constrained in migration) ----------------------
+    difficulty: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+    )
+
+    # ----- Visualization ----------------------------------------------------
+    visualization_type: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+
+    # ----- Timestamps -------------------------------------------------------
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<DataStructure id={self.id}>"
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+    def __hash__(self) -> int:
+        return id(self)
+
+
 __all__ = [
     "DIFFICULTY_VALUES",
     "Algorithm",
     "Category",
+    "DataStructure",
     "Topic",
 ]
