@@ -9,7 +9,7 @@ is updated as each model lands:
 
 - ``user_algorithm_progress.py`` — UserAlgorithmProgress + STATUS_VALUES (B5.1)
 - ``user_problem_progress.py`` — UserProblemProgress (B5.2)
-- (B5.3 — user_recent_items)
+- ``user_recent_items.py`` — UserRecentItem + ITEM_TYPE_VALUES (B5.3)
 
 Why split per file (not one big module)
 ---------------------------------------
@@ -31,9 +31,15 @@ from src.modules.progress.models.user_algorithm_progress import (
 from src.modules.progress.models.user_problem_progress import (
     UserProblemProgress,
 )
+from src.modules.progress.models.user_recent_items import (
+    ITEM_TYPE_VALUES,
+    UserRecentItem,
+)
 
 __all__ = [
+    "ITEM_TYPE_VALUES",
     "STATUS_VALUES",
     "UserAlgorithmProgress",
     "UserProblemProgress",
+    "UserRecentItem",
 ]
