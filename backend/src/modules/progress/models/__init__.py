@@ -8,7 +8,7 @@ Phase 5 ships incrementally (B5.1, B5.2, B5.3, ...). This file
 is updated as each model lands:
 
 - ``user_algorithm_progress.py`` — UserAlgorithmProgress + STATUS_VALUES (B5.1)
-- (B5.2 — user_problem_progress)
+- ``user_problem_progress.py`` — UserProblemProgress (B5.2)
 - (B5.3 — user_recent_items)
 
 Why split per file (not one big module)
@@ -28,8 +28,12 @@ from src.modules.progress.models.user_algorithm_progress import (
     STATUS_VALUES,
     UserAlgorithmProgress,
 )
+from src.modules.progress.models.user_problem_progress import (
+    UserProblemProgress,
+)
 
 __all__ = [
     "STATUS_VALUES",
     "UserAlgorithmProgress",
+    "UserProblemProgress",
 ]
