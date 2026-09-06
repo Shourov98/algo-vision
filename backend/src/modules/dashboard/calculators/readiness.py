@@ -72,9 +72,16 @@ class ReadinessCalculator:
     that returns their own session for full introspection.
     """
 
-    def __init__(self, session_factory: Callable[[], AsyncSession]) -> None:
-        # Kept as a structural attribute so tests can assert
-        # the orchestrator passed the right factory.
+    def __init__(
+        self, session_factory: Callable[[], AsyncSession]
+    ) -> None:
+        # ``session_factory`` is anything callable that
+        # returns a fresh ``AsyncSession`` when called.
+        # Production passes an ``async_sessionmaker`` from
+        # ``get_session_factory()``; tests can pass a
+        # closure that returns their own session. Kept as
+        # a structural attribute so tests can assert the
+        # orchestrator passed the right factory.
         self._session_factory = session_factory
 
     async def compute(self, user_id: UUID) -> ReadinessMetric:

@@ -28,6 +28,7 @@ from src.core.rate_limit import build_limiter
 from src.core.settings import Settings, get_settings
 from src.modules.auth.router import router as auth_router
 from src.modules.catalog.router import all_routers as catalog_routers
+from src.modules.dashboard.router import all_routers as dashboard_routers
 from src.modules.health.router import router as health_router
 from src.modules.problems.router import all_routers as problems_routers
 from src.modules.progress.dependencies import register_progress_handlers
@@ -86,6 +87,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for router in problems_routers:
         application.include_router(router)
     for router in progress_routers:
+        application.include_router(router)
+    for router in dashboard_routers:
         application.include_router(router)
 
     # Wire the process-wide event dispatcher so catalog/problems
