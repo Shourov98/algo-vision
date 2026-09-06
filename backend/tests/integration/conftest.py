@@ -74,6 +74,7 @@ from src.modules.problems.models import (
     ProblemCompany,
     ProblemTopic,
 )
+from src.modules.users.models import User
 from src.shared.events import InProcessEventDispatcher, NoopEventDispatcher
 
 # ---------------------------------------------------------------------------
@@ -482,4 +483,149 @@ async def link_problem_to_topic(
     session.add(
         ProblemTopic(problem_id=problem_id, topic_id=topic_id)
     )
+    await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Progress-specific fixtures + seed helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def progress_client(
+    engine,
+) -> AsyncIterator[tuple[AsyncClient, AsyncSession]]:
+    """Yield (httpx client, raw DB session) wired to the same engine.
+
+    ``get_progress_service`` is overridden so the progress
+    service uses the test session — the app's default
+    engine (pointed at the production DB) is bypassed.
+
+    Used by ``test_progress_endpoints.py`` to exercise the
+    full HTTP stack against a real Postgres test database.
+    """
+    from src.modules.auth.repository import RefreshTokensRepository
+    from src.modules.auth.service import AuthService
+    from src.modules.progress.dependencies import get_progress_service
+    from src.modules.progress.repository import ProgressRepository
+    from src.modules.progress.service import ProgressService
+    from src.modules.users.repository import UsersRepository
+
+    settings = get_settings()
+    application = create_app(settings)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def _progress_service_dep():
+        async with Session() as session:
+            yield ProgressService(repo=ProgressRepository(session))
+
+    application.dependency_overrides[
+        get_progress_service
+    ] = _progress_service_dep
+
+    # Auth dependency override — same pattern as ``client``
+    # so progress tests can create real users + log them in.
+    async def _auth_service_dep():
+        async with Session() as session:
+            yield AuthService(
+                session=session,
+                users_repo=UsersRepository(session),
+                refresh_tokens_repo=RefreshTokensRepository(session),
+                settings=settings,
+            )
+
+    from src.modules.auth.dependencies import get_auth_service
+
+    application.dependency_overrides[get_auth_service] = _auth_service_dep
+
+    transport = ASGITransport(app=application)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client, Session() as session:
+        yield client, session
+
+    application.dependency_overrides.clear()
+
+
+async def seed_user(
+    session: AsyncSession,
+    *,
+    email: str = "u@example.com",
+    password: str = "supersecret123",
+    name: str = "Test User",
+) -> User:
+    """Insert a User row in ``session`` and return it."""
+    from src.modules.users.models import User as UserModel
+
+    user = UserModel(
+        email=email,
+        name=name,
+        password_hash="x",  # Tests don't exercise password verify.
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+async def seed_algorithm_progress(
+    session: AsyncSession,
+    *,
+    user_id: object,
+    algorithm_id: object,
+    status: str = "in_progress",
+    completion_percentage: int = 0,
+) -> None:
+    """Insert a UserAlgorithmProgress row."""
+    from src.modules.progress.models import UserAlgorithmProgress
+
+    row = UserAlgorithmProgress(
+        user_id=user_id,
+        algorithm_id=algorithm_id,
+        status=status,
+        completion_percentage=completion_percentage,
+    )
+    session.add(row)
+    await session.commit()
+
+
+async def seed_problem_progress(
+    session: AsyncSession,
+    *,
+    user_id: object,
+    problem_id: object,
+    status: str = "in_progress",
+    attempts: int = 1,
+) -> None:
+    """Insert a UserProblemProgress row."""
+    from src.modules.progress.models import UserProblemProgress
+
+    row = UserProblemProgress(
+        user_id=user_id,
+        problem_id=problem_id,
+        status=status,
+        attempts=attempts,
+    )
+    session.add(row)
+    await session.commit()
+
+
+async def seed_recent_item(
+    session: AsyncSession,
+    *,
+    user_id: object,
+    item_type: str = "algorithm",
+    item_id: object | None = None,
+) -> None:
+    """Insert a UserRecentItem row."""
+    from uuid import uuid4 as _uuid4
+
+    from src.modules.progress.models import UserRecentItem
+
+    row = UserRecentItem(
+        user_id=user_id,
+        item_type=item_type,
+        item_id=item_id or _uuid4(),
+    )
+    session.add(row)
     await session.commit()
