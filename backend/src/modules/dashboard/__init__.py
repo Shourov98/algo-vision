@@ -13,7 +13,7 @@ Canonical layered structure:
         skill_map.py        SkillMapper
         focus_area.py       FocusAreaSelector
         streak.py           StreakCalculator
-    service.py      DashboardAggregator (orchestrator only)
+    service.py      DashboardService (orchestrator only)
     router.py       /dashboard
     tests/          unit tests for each calculator + aggregator
 
