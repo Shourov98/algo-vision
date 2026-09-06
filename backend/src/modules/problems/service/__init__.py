@@ -36,7 +36,9 @@ Refs: AlgoVision_BACKEND.md §8
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Protocol
+from uuid import UUID
 
 from src.modules.problems.exceptions import CompanyNotFound, ProblemNotFound
 from src.modules.problems.filters import (
@@ -57,7 +59,14 @@ from src.modules.problems.service._converters import (
     problem_to_detail,
     problem_to_summary,
 )
+from src.shared.events import EventDispatcherProtocol, ItemViewedEvent
 from src.shared.pagination import Page
+
+# Item-type discriminator for ItemViewedEvent (Phase 5).
+# Plain string so cross-module handlers don't have to
+# import a problems-side enum to switch on it (mirrors
+# ALGOVISION_BACKEND_PLAN §6.7).
+_ITEM_TYPE_PROBLEM = "problem"
 
 
 class ProblemsServiceProtocol(Protocol):
@@ -72,7 +81,11 @@ class ProblemsServiceProtocol(Protocol):
         self, filters: ProblemFilters
     ) -> Page[ProblemSummaryResponse]: ...
 
-    async def get_problem_by_slug(self, slug: str) -> ProblemDetailResponse: ...
+    async def get_problem_by_slug(
+        self,
+        slug: str,
+        user_id: UUID | None = None,
+    ) -> ProblemDetailResponse: ...
 
     async def list_companies(
         self, filters: CompanyFilters
@@ -106,9 +119,11 @@ class ProblemsService:
         self,
         problems_repo: ProblemRepositoryProtocol,
         companies_repo: CompanyRepositoryProtocol,
+        events: EventDispatcherProtocol,
     ) -> None:
         self._problems = problems_repo
         self._companies = companies_repo
+        self._events = events
 
     # ------------------------------------------------------------------
     # Problems
@@ -125,7 +140,11 @@ class ProblemsService:
             total=page.total,
         )
 
-    async def get_problem_by_slug(self, slug: str) -> ProblemDetailResponse:
+    async def get_problem_by_slug(
+        self,
+        slug: str,
+        user_id: UUID | None = None,
+    ) -> ProblemDetailResponse:
         """Return the problem with ``slug`` or raise 404.
 
         Embeds topic + company summaries via two extra repo
@@ -136,12 +155,26 @@ class ProblemsService:
         because the JSON shape requires nested arrays; the
         two-query approach is simpler and equally fast at
         this scale.
+
+        Dispatches ``ItemViewedEvent`` with
+        ``item_type="problem"`` when ``user_id`` is supplied
+        so progress tracking can attribute the view
+        consistently across catalog entities.
         """
         problem = await self._problems.get_by_slug(slug)
         if problem is None:
             raise ProblemNotFound(f"No problem with slug {slug!r}.")
         topics = await self._problems.list_topics(problem.id)
         companies = await self._problems.list_companies(problem.id)
+        if user_id is not None:
+            await self._events.dispatch(
+                ItemViewedEvent(
+                    user_id=user_id,
+                    item_type=_ITEM_TYPE_PROBLEM,
+                    item_id=problem.id,
+                    viewed_at=datetime.now(UTC),
+                )
+            )
         return problem_to_detail(problem, topics, companies)
 
     # ------------------------------------------------------------------

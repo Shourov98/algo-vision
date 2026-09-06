@@ -74,7 +74,7 @@ from src.modules.problems.models import (
     ProblemCompany,
     ProblemTopic,
 )
-from src.shared.events import InProcessEventDispatcher
+from src.shared.events import InProcessEventDispatcher, NoopEventDispatcher
 
 # ---------------------------------------------------------------------------
 # Skip-everything marker
@@ -402,6 +402,7 @@ async def problems_client(
             yield ProblemsService(
                 problems_repo=ProblemRepository(session),
                 companies_repo=CompanyRepository(session),
+                events=NoopEventDispatcher(),
             )
 
     application.dependency_overrides[

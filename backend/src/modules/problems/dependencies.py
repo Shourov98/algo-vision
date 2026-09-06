@@ -27,7 +27,7 @@ Refs: PUKU_BACKEND_AGENT.md §7 (Router Conventions)
 
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.db import get_session
@@ -39,15 +39,33 @@ from src.modules.problems.service import (
     ProblemsService,
     ProblemsServiceProtocol,
 )
+from src.shared.events import (
+    EventDispatcherProtocol,
+    NoopEventDispatcher,
+)
 
 
 def get_problems_service(
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> ProblemsServiceProtocol:
-    """Build a ProblemsService bound to the request-scoped session."""
+    """Build a ProblemsService bound to the request-scoped session.
+
+    Phase 5 (B5.8): problems API now dispatches
+    ``ItemViewedEvent`` on detail reads so the progress
+    module can attribute views. The dispatcher is pulled
+    off ``app.state.dispatcher`` (set by the wiring in
+    main.py); when it hasn't been wired yet (tests, CLI),
+    a ``NoopEventDispatcher`` keeps the service
+    constructible.
+    """
+    dispatcher: EventDispatcherProtocol = getattr(
+        request.app.state, "dispatcher", NoopEventDispatcher()
+    )
     return ProblemsService(
         problems_repo=ProblemRepository(session),
         companies_repo=CompanyRepository(session),
+        events=dispatcher,
     )
 
 

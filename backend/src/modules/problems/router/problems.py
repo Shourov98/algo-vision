@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path
 
+from src.modules.catalog.dependencies import get_optional_user
 from src.modules.problems.dependencies import get_problems_service
 from src.modules.problems.router._common import build_problem_filters
 from src.modules.problems.schemas import (
@@ -24,6 +25,7 @@ from src.modules.problems.schemas import (
     ProblemListResponse,
 )
 from src.modules.problems.service import ProblemsServiceProtocol
+from src.modules.users.models import User
 
 router = APIRouter(
     prefix="/api/v1/problems",
@@ -58,8 +60,11 @@ async def list_problems(
 async def get_problem(
     slug: str = Path(..., min_length=1, max_length=96),
     service: ProblemsServiceProtocol = Depends(get_problems_service),
+    user: User | None = Depends(get_optional_user),
 ) -> ProblemDetailResponse:
-    return await service.get_problem_by_slug(slug)
+    return await service.get_problem_by_slug(
+        slug, user_id=user.id if user is not None else None
+    )
 
 
 __all__ = ["router"]

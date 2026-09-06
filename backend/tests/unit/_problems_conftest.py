@@ -17,6 +17,7 @@ from uuid import uuid4
 from src.modules.catalog.models import Topic
 from src.modules.problems.models import Company, Problem
 from src.modules.problems.service import ProblemsService
+from src.shared.events import NoopEventDispatcher
 from src.shared.pagination import Page
 
 
@@ -50,8 +51,9 @@ def make_service() -> tuple[
     problems = FakeProblemRepo()
     companies = FakeCompanyRepo()
     svc = ProblemsService(
-        problems_repo=problems,  # type: ignore[arg-type]
-        companies_repo=companies,  # type: ignore[arg-type]
+        problems_repo=problems,
+        companies_repo=companies,
+        events=NoopEventDispatcher(),
     )
     return svc, {"problems": problems, "companies": companies}
 
