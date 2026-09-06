@@ -30,6 +30,8 @@ from src.modules.auth.router import router as auth_router
 from src.modules.catalog.router import all_routers as catalog_routers
 from src.modules.health.router import router as health_router
 from src.modules.problems.router import all_routers as problems_routers
+from src.modules.progress.dependencies import register_progress_handlers
+from src.modules.progress.router import all_routers as progress_routers
 from src.shared.events import InProcessEventDispatcher
 
 DEFAULT_TITLE = "AlgoVision API"
@@ -83,13 +85,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.include_router(router)
     for router in problems_routers:
         application.include_router(router)
+    for router in progress_routers:
+        application.include_router(router)
 
     # Wire the process-wide event dispatcher so catalog/problems
     # services can dispatch ItemViewedEvent without importing
-    # subscribers. Future phases register handlers here
-    # (ProgressService in B5.x). Until then it's empty —
-    # the dispatch call simply finds no handlers.
-    application.state.dispatcher = InProcessEventDispatcher()
+    # subscribers. Progress (B5.7) is the first consumer; future
+    # analytics/recommendation modules can register here too.
+    dispatcher = InProcessEventDispatcher()
+    register_progress_handlers(dispatcher)
+    application.state.dispatcher = dispatcher
 
     @application.get("/", include_in_schema=False)
     def _root() -> dict[str, str]:
