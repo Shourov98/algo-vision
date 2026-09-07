@@ -15,6 +15,8 @@ Refs: PUKU_BACKEND_AGENT.md §3.1 (Architecture)
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -75,11 +77,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=_lifespan,
     )
 
     _register_error_handlers(application)
     _register_rate_limit_handlers(application, settings)
-    _register_lifespan(application)
     application.include_router(health_router)
     application.include_router(auth_router)
     for router in catalog_routers:
@@ -190,15 +192,18 @@ def _register_rate_limit_handlers(application: FastAPI, settings: Settings) -> N
         )
 
 
-def _register_lifespan(application: FastAPI) -> None:
-    """Wire application lifespan so the DB pool is closed on shutdown.
+@asynccontextmanager
+async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Dispose shared resources when a FastAPI lifespan ends.
 
-    FastAPI's modern lifespan context manager replaces the
-    deprecated @app.on_event('startup'/'shutdown') decorators.
+    Engine initialization remains in ``create_app`` so the existing
+    app-factory contract is unchanged. The context manager replaces
+    FastAPI's deprecated event decorators and guarantees cleanup even
+    when application startup or request handling raises.
     """
-
-    @application.on_event("shutdown")
-    async def _on_shutdown() -> None:
+    try:
+        yield
+    finally:
         log.info("application.shutdown")
         await dispose_engine()
 

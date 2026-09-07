@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.core.errors import NotFound, UserNotFound
 from src.core.settings import Settings, get_settings
-from src.main import create_app
+from src.main import create_app, dispose_engine
 
 
 @pytest.fixture
@@ -38,6 +38,27 @@ def test_create_app_returns_fastapi_instance(test_settings: Settings) -> None:
     app: FastAPI = create_app(test_settings)
     assert isinstance(app, FastAPI)
     assert app.title == "AlgoVision API"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_disposes_engine_on_shutdown(
+    test_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The lifespan context releases shared DB resources on shutdown."""
+    disposed: list[bool] = []
+
+    async def _dispose_engine() -> None:
+        disposed.append(True)
+        await dispose_engine()
+
+    monkeypatch.setattr("src.main.dispose_engine", _dispose_engine)
+    app = create_app(test_settings)
+
+    async with app.router.lifespan_context(app):
+        assert disposed == []
+
+    assert disposed == [True]
 
 
 def test_root_endpoint_reports_environment(test_settings: Settings) -> None:
