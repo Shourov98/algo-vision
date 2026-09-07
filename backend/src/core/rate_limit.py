@@ -41,6 +41,7 @@ from slowapi.wrappers import Limit
 RATE_LIMIT_REGISTER = "5/hour"
 RATE_LIMIT_LOGIN = "10/10 minute"
 RATE_LIMIT_REFRESH = "60/hour"
+RATE_LIMIT_DASHBOARD = "600/minute"
 
 # Fallback when Settings doesn't provide one. Used as a default
 # argument to the Limiter constructor.
