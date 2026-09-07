@@ -44,6 +44,18 @@ DEFAULT_DESCRIPTION = (
     "Interactive algorithm & data structure visualization platform. "
     "See /docs for OpenAPI, /openapi.json for the raw schema."
 )
+OPENAPI_TAGS = [
+    {"name": "health", "description": "Service liveness and readiness probes."},
+    {"name": "auth", "description": "Authentication and session management."},
+    {"name": "algorithms", "description": "Algorithm catalog and source code."},
+    {"name": "catalog-categories", "description": "Algorithm category catalog."},
+    {"name": "catalog-topics", "description": "Shared learning topics."},
+    {"name": "data-structures", "description": "Data-structure catalog."},
+    {"name": "problems", "description": "Interview problem catalog."},
+    {"name": "problems-companies", "description": "Interview-problem companies."},
+    {"name": "progress", "description": "Authenticated learning progress."},
+    {"name": "dashboard", "description": "Authenticated dashboard projection."},
+]
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -79,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url="/redoc",
         openapi_url="/openapi.json",
         lifespan=_lifespan,
+        openapi_tags=OPENAPI_TAGS,
     )
 
     install_request_id_middleware(application)
