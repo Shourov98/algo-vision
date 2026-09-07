@@ -127,11 +127,15 @@ report** to the user instead.
 
 See `GIT_WORKFLOW.md`. Summary:
 
-- Branch from latest `develop`: `git checkout develop && git pull &&
-  git checkout -b <type>/<scope>/<description>`
+- **Branch from `dev-backend`** (not `develop`): `git checkout
+  dev-backend && git pull && git checkout -b
+  <type>/<scope>/<description>`. Backend features (B1.*–B6.*) PR to
+  `dev-backend`, never to `develop` or `dev-frontend`.
+- **Every change goes through a PR.** No direct commits to
+  `main`, `develop`, `dev-backend`. No direct merges without review.
 - One logical unit per commit. Conventional Commits format.
-- Squash-merge PRs to `develop`.
-- Never push directly to `main` or `develop`.
+- Squash-merge PRs.
+- Never push directly to `main`, `develop`, or `dev-backend`.
 - Reference plan section in commit body.
 
 ### 3.6 DRY
@@ -148,6 +152,37 @@ Don't duplicate:
 
 Do not over-abstract. Two pieces of similar-looking code are not
 automatically duplicates.
+
+### 3.7 File Size Rule (400 Lines Max)
+
+**Strict.** No Python source file (`.py`) may exceed 400 lines.
+
+When a service, repository, or module approaches 400 lines, split it
+**by responsibility** (not arbitrarily). Common splits for the
+backend:
+
+``` text
+# Service approaching 400 lines → split into a package
+modules/algorithms/
+├── __init__.py             # exports get_algorithm_service
+├── service.py              # ≤ 400 lines (orchestration only)
+├── validators.py           # input validation rules
+├── transformers.py         # ORM/DTO ↔ response conversions
+└── queries.py              # complex SQL helpers
+```
+
+The pre-commit hook (`lefthook.yml`) blocks commits where any
+modified `.py` file exceeds 400 lines. CI runs the same check on every
+PR. See `GIT_WORKFLOW.md` §12 for full details, exceptions, and the
+hook configuration.
+
+**Allowed exceptions** (must be justified in the PR body):
+
+- Auto-generated Alembic migration files.
+- Auto-generated schema files (e.g., from OpenAPI codegen).
+
+When in doubt: **split**. A 200-line module is better than a 500-line
+module even if the smaller module "looks empty."
 
 ---
 
@@ -265,9 +300,14 @@ RISKS:    <anything the user should know>
 ### Step 3: Branch
 
 ``` bash
-git checkout develop && git pull
+# Backend features (B*) base from dev-backend, target dev-backend
+git checkout dev-backend && git pull
 git checkout -b <type>/<scope>/<description>
 ```
+
+The PR target is also `dev-backend`. Never open a backend PR against
+`develop` or `dev-frontend`. See `GIT_WORKFLOW.md` §1.2 for the full
+branch routing rule.
 
 ### Step 4: Implement (smallest coherent unit first)
 
@@ -785,6 +825,7 @@ A commit is **not done** unless ALL of these pass:
 □ git diff --check                        (no whitespace errors)
 □ gitleaks protect --staged               (no secrets)
 □ git log --oneline -1                    (commit message follows convention)
+□ No .py file in diff > 400 lines          (GIT_WORKFLOW.md §12)
 ```
 
 A phase is **not done** unless additionally:
@@ -980,6 +1021,8 @@ yourself wanting to log any of these, **stop and refactor**.
 ❌ **Don't** put SQL in router handlers.
 ❌ **Don't** import `ProgressService` from `AlgorithmService`.
 ❌ **Don't** log passwords, hashes, or tokens.
+❌ **Don't** write a Python file > 400 lines. Split by responsibility.
+❌ **Don't** merge anything without a PR — even hotfixes require review.
 
 ---
 

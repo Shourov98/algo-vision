@@ -146,9 +146,15 @@ styled-components, Material UI, Chakra, formik, react-router).
 
 See `GIT_WORKFLOW.md`. Summary:
 
-- Branch from latest `develop`.
+- **Branch from `dev-frontend`** (not `develop`): `git checkout
+  dev-frontend && git pull && git checkout -b
+  <type>/<scope>/<description>`. Frontend features (F1.*–F7.*) PR to
+  `dev-frontend`, never to `develop` or `dev-backend`.
+- **Every change goes through a PR.** No direct commits to
+  `main`, `develop`, `dev-frontend`. No direct merges without review.
 - One logical unit per commit. Conventional Commits.
 - Squash-merge PRs.
+- Never push directly to `main`, `develop`, or `dev-frontend`.
 - Reference plan section in commit body.
 
 ### 3.9 DRY
@@ -164,6 +170,68 @@ Don't duplicate:
 - Player controls (one component)
 - Complexity rendering
 - Code panel behavior
+
+### 3.10 File Size Rule (400 Lines Max)
+
+**Strict.** No TypeScript source file (`*.ts`, `*.tsx`, `*.js`,
+`*.jsx`) may exceed 400 lines.
+
+When a component, hook, page, or module approaches 400 lines, split it
+**by responsibility** (not arbitrarily). Common splits for the
+frontend:
+
+``` text
+# Component file approaching 400 lines → split into a folder
+visualization-page.tsx          (was 480 lines)
+
+# After:
+visualization-page/
+├── index.tsx                   # main export
+├── visualization-page.tsx      # composition only
+├── use-visualization-page.ts    # page-specific hook
+├── components/
+│   ├── shell.tsx
+│   ├── header.tsx
+│   └── sidebar.tsx
+└── types.ts
+```
+
+Other patterns:
+
+``` text
+# Long store file → split by concern
+stores/visualization-store.ts   (was 600 lines)
+
+# After:
+stores/
+├── engine-store.ts             # algorithm state
+├── ui-store.ts                 # panel/layout state
+└── selectors.ts                # derived selectors
+```
+
+``` text
+# Long adapter file → split per adapter
+adapters/index.ts               (was 700 lines)
+
+# After:
+adapters/
+├── array-adapter.ts
+├── linked-list-adapter.ts
+├── tree-adapter.ts
+├── graph-adapter.ts
+└── index.ts                    # re-exports + registry
+```
+
+The pre-commit hook (`lefthook.yml`) blocks commits where any
+modified `.ts/.tsx/.js/.jsx` file exceeds 400 lines. CI runs the same
+check on every PR. See `GIT_WORKFLOW.md` §12 for full details.
+
+**Allowed exceptions** (must be justified in the PR body):
+
+- Auto-generated files (Next.js scaffolding, OpenAPI clients).
+
+When in doubt: **split**. A 200-line component is better than a
+500-line component even if the smaller file "looks thin."
 
 ---
 
@@ -271,9 +339,14 @@ RISKS:     <anything to flag>
 ### Step 3: Branch
 
 ``` bash
-git checkout develop && git pull
+# Frontend features (F*) base from dev-frontend, target dev-frontend
+git checkout dev-frontend && git pull
 git checkout -b <type>/<scope>/<description>
 ```
+
+The PR target is also `dev-frontend`. Never open a frontend PR against
+`develop` or `dev-backend`. See `GIT_WORKFLOW.md` §1.2 for the full
+branch routing rule.
 
 ### Step 4: Implement (smallest coherent unit)
 
@@ -863,6 +936,7 @@ A commit is **not done** unless ALL of these pass:
 □ git diff --check                (no whitespace errors)
 □ gitleaks protect --staged       (no secrets)
 □ git log --oneline -1            (commit message follows convention)
+□ No .ts/.tsx/.js/.jsx file in diff > 400 lines (GIT_WORKFLOW.md §12)
 ```
 
 A phase is **not done** unless additionally:
@@ -1036,6 +1110,8 @@ change reasons.
 ❌ **Don't** mutate state in reducers. Use Immer.
 ❌ **Don't** commit with `git add -A`.
 ❌ **Don't** merge without required approvals.
+❌ **Don't** write a TS/TSX file > 400 lines. Split by responsibility.
+❌ **Don't** merge anything without a PR — even small fixes require review.
 
 ---
 

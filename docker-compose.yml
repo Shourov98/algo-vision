@@ -1,0 +1,55 @@
+# =============================================================================
+# AlgoVision — local development docker-compose
+# =============================================================================
+# Brings up the API service. The database is the Supabase managed
+# Postgres; this compose file does NOT run a local DB. To run with a
+# fully local Postgres instead, see docker-compose.local-db.yml.
+#
+# Usage:
+#   docker compose up --build
+#   curl http://localhost:8000/health
+#   curl http://localhost:8000/health/db
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: algovision-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Container-internal defaults (overridable by .env)
+      APP_ENV: ${APP_ENV:-development}
+      # Tell the API to talk to Supabase. Override DATABASE_URL in
+      # .env if you want to point at a different Postgres.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      # Mount source for live reload in dev (comment out for prod).
+      - ./backend/src:/app/src:ro
+    networks:
+      - algovision-net
+
+  # Frontend comes in F1.1. For now, only the API runs.
+  # web:
+  #   build: ./frontend
+  #   ...
+
+networks:
+  algovision-net:
+    driver: bridge

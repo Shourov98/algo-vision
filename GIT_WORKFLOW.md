@@ -8,19 +8,111 @@
 
 ---
 
-## 1. Branch Strategy — Lightweight Git Flow
+## 1. Branch Strategy — Lightweight Git Flow + Frontend/Backend Split
+
+AlgoVision uses **one integration branch per domain** to keep
+frontend and backend work isolated while they evolve in parallel.
 
 ``` text
-main                      Production-ready. Protected. Tagged per release.
-└── develop               Integration branch. Default branch for PRs.
-    ├── feat/<scope>/<ticket>      Feature work
-    ├── fix/<scope>/<ticket>       Bug fixes
-    ├── refactor/<scope>/<ticket>  Internal restructuring
-    ├── perf/<scope>/<ticket>      Performance improvements
-    ├── test/<scope>/<ticket>      Test-only changes
-    ├── docs/<scope>/<ticket>      Documentation only
-    └── chore/<scope>/<ticket>     Tooling, deps, config
+main                          Production-ready. Protected. Tagged per release.
+└── develop                   Cross-cutting integration (default for general PRs)
+    ├── dev-frontend          Frontend integration (features F1.*–F7.*)
+    │     └── feat/<scope>/<ticket>    Frontend feature work
+    ├── dev-backend           Backend integration (features B1.*–B6.*)
+    │     └── feat/<scope>/<ticket>    Backend feature work
+    └── (cross-cutting X.* features branch from develop directly)
 ```
+
+### 1.1 Branch Topology
+
+``` text
+main                                (canonical docs only; protected)
+ │
+ └── develop                        (cross-cutting integration)
+      │
+      ├── dev-frontend              (frontend integration)
+      │     │
+      │     ├── feat/algorithms/quick-sort-module        → PR → dev-frontend
+      │     ├── feat/auth/login-page                     → PR → dev-frontend
+      │     └── feat/visualization/array-adapter         → PR → dev-frontend
+      │
+      ├── dev-backend               (backend integration)
+      │     │
+      │     ├── feat/auth/login-endpoint                → PR → dev-backend
+      │     ├── feat/algorithms/list-endpoint           → PR → dev-backend
+      │     └── feat/dashboard/streak-calculator         → PR → dev-backend
+      │
+      └── (cross-cutting X.* work)
+            │
+            ├── feat/ci/add-ci-pipeline                 → PR → develop
+            └── chore/deps/bump-fastapi                  → PR → develop
+```
+
+### 1.2 Branch Routing Rule (STRICT)
+
+When implementing a feature, the **base branch and target branch** are
+determined by the feature ID prefix in `FEATURE_LIST.md`:
+
+| Feature ID prefix       | Base branch    | Target branch | Read these docs                  |
+|-------------------------|----------------|---------------|----------------------------------|
+| `B1.*`, `B2.*`, ..., `B6.*` | `dev-backend`  | `dev-backend` | `PUKU_BACKEND_AGENT.md`, `ALGOVISION_BACKEND_PLAN.md`, `DATABASE_DESIGN.md`, `AlgoVision_BACKEND.md` |
+| `F1.*`, `F2.*`, ..., `F7.*` | `dev-frontend` | `dev-frontend`| `PUKU_FRONTEND_AGENT.md`, `ALGOVISION_FRONTEND_PLAN.md`, `AlgoVision_FRONTEND.md` |
+| `X.*`                  | `develop`      | `develop`     | Both agent docs                  |
+
+**Violations:**
+
+- ❌ A backend feature (B-prefix) PR'd to `dev-frontend` or `develop`
+  → blocked.
+- ❌ A frontend feature (F-prefix) PR'd to `dev-backend` or `develop`
+  → blocked.
+- ❌ A cross-cutting feature (X-prefix) PR'd to `dev-frontend` or
+  `dev-backend` → blocked (unless it touches only one side; in which
+  case re-classify as F or B and follow the appropriate routing).
+
+**How Puku decides at runtime:**
+
+``` bash
+# Pseudo-code for branch selection
+case $FEATURE_ID in
+  B*)  BASE=dev-backend; TARGET=dev-backend ;;
+  F*)  BASE=dev-frontend; TARGET=dev-frontend ;;
+  X*)  BASE=develop; TARGET=develop ;;
+  *)   echo "Unknown feature ID; ask user."; exit 1 ;;
+esac
+```
+
+### 1.3 Promote-to-Develop Flow
+
+`dev-frontend` and `dev-backend` are kept aligned with `develop`
+through **periodic fast-forwards**. The cadence:
+
+``` text
+When a phase is complete and verified on its dev branch:
+  dev-frontend ──ff──▶ develop         (or merge --no-ff if histories diverged)
+  dev-backend  ──ff──▶ develop         (same)
+
+When both dev branches are green on develop and have completed their
+phase, cut release:
+  develop ──cut release/v0.X.Y──▶ release/v0.X.Y ──merge──▶ main + tag
+```
+
+The cadence is **not** "every commit". It's **per verified phase**
+(see `FEATURE_LIST.md` §6 for what "complete" means for each phase).
+
+### 1.4 Why Two Dev Branches?
+
+1. **Isolation**: frontend and backend can iterate without stepping on
+   each other's CI.
+2. **Clean diffs**: a frontend PR is reviewable without backend noise;
+   vice versa.
+3. **Parallelism**: two agents (or two developers) can work
+   simultaneously without forced merges.
+4. **Cleaner history**: each integration branch has only commits
+   relevant to its domain.
+
+**Tradeoff acknowledged:** sync merges between `dev-frontend` and
+`dev-backend` are required at phase boundaries. This is acceptable
+because each phase has a clear Definition of Done.
 
 **Release flow:**
 
@@ -309,7 +401,21 @@ Place at `.github/pull_request_template.md`:
 
 ## 5. Branch Protection Rules
 
-Apply on `main` and `develop`:
+Apply on **every** protected branch (`main`, `develop`,
+`dev-frontend`, `dev-backend`):
+
+### 5.0 Universal Rule: No Direct Push, No Direct Merge
+
+**Nothing reaches a protected branch without a PR.** This is enforced
+both socially and via branch protection rules below.
+
+- ❌ No `git push` directly to `main`, `develop`, `dev-frontend`,
+  `dev-backend`.
+- ❌ No `git merge` on the CLI into these branches bypassing the PR
+  flow (even with `--ff-only`).
+- ❌ No `gh repo merge` direct-to-branch.
+- ✅ Every change goes: branch → commit → push → PR → CI → review →
+  squash-merge via `gh pr merge --squash`.
 
 ### 5.1 `main`
 
@@ -329,9 +435,10 @@ Apply on `main` and `develop`:
 ☑ Include administrators
 ☐ Allow force pushes          (NEVER)
 ☐ Allow deletions             (NEVER)
+☐ Allow direct pushes         (NEVER — no exceptions)
 ```
 
-### 5.2 `develop`
+### 5.2 `develop`, `dev-frontend`, `dev-backend`
 
 ``` text
 ☑ Require pull request before merging
@@ -341,9 +448,17 @@ Apply on `main` and `develop`:
    ☑ typecheck
    ☑ test
    ☑ migration-verify
+☑ Require branches to be up to date before merging
 ☑ Require linear history
 ☐ Allow force pushes          (NEVER)
+☐ Allow deletions             (NEVER)
+☐ Allow direct pushes         (NEVER — no exceptions)
 ```
+
+**Recommended:** set the same rules on `dev-frontend` and
+`dev-backend` so even the integration branches require PR + review.
+Feature branches (`feat/*`, `fix/*`, etc.) have no protection — they
+are scratch branches.
 
 ---
 
@@ -597,7 +712,185 @@ Conventional Commits.
 
 ---
 
-## 12. References
+## 12. File Size Rule (400 Lines Max)
+
+**Every source file must be ≤ 400 lines, including blank lines and
+comments.** This is a **strict** rule. If a file approaches 400 lines,
+you must split it before merging.
+
+### 12.1 Rationale
+
+- Files > 400 lines are a strong signal that a class or module has
+  more than one responsibility.
+- Long files are harder to read, review, and navigate.
+- They usually indicate SRP violation (God class, god module).
+- Smaller files are easier to test in isolation.
+- This rule is consistent with the SOLID principles enforced
+  throughout the project.
+
+### 12.2 Scope
+
+Applies to:
+
+``` text
+✓ *.py          (backend)
+✓ *.ts / *.tsx  (frontend)
+✓ *.js / *.jsx  (frontend, if any)
+```
+
+Does **not** apply to:
+
+``` text
+✗ Markdown documentation (*.md)
+✗ Migration files (Alembic auto-generated structure)
+✗ Generated files (Alembic env.py, Next.js scaffolding)
+✗ SVG design references
+✗ Lock files (pnpm-lock.yaml, poetry.lock)
+```
+
+### 12.3 Soft Warning Threshold
+
+``` text
+> 350 lines  →  YELLOW  — refactor in this commit or open a follow-up
+> 400 lines  →  RED    — pre-commit hook blocks; CI fails
+```
+
+### 12.4 How to Split
+
+Common patterns for splitting:
+
+**Python (backend):**
+
+``` text
+# Before: 500-line service.py
+service.py
+
+# After: split by responsibility
+service/
+├── __init__.py
+├── orchestrator.py            # main service class
+├── validators.py              # input validation
+├── transformers.py            # entity → DTO conversion
+└── queries.py                 # complex query helpers
+```
+
+**TypeScript (frontend):**
+
+``` text
+# Before: 450-line component file
+visualization-page.tsx
+
+# After: split by concern
+visualization-page/
+├── index.tsx                  # main export
+├── visualization-page.tsx     # composition
+├── use-visualization-page.ts  # page-specific hook
+├── components/
+│   ├── shell.tsx
+│   ├── header.tsx
+│   └── sidebar.tsx
+└── types.ts
+```
+
+### 12.5 Enforcement
+
+**Pre-commit hook** (added to `lefthook.yml`):
+
+```yaml
+pre-commit:
+  commands:
+    file-size-check:
+      run: |
+        MAX=400
+        FAIL=0
+        for f in $(git diff --cached --name-only --diff-filter=ACMR \
+                   | grep -E '\.(py|ts|tsx|js|jsx)$'); do
+          if [ -f "$f" ]; then
+            LINES=$(wc -l < "$f")
+            if [ "$LINES" -gt "$MAX" ]; then
+              echo "❌ $f: $LINES lines (max $MAX)"
+              FAIL=1
+            fi
+          fi
+        done
+        exit $FAIL
+```
+
+**CI job** (`.github/workflows/ci.yml`):
+
+```yaml
+- name: Check file size
+  run: |
+    MAX=400
+    FAIL=0
+    for f in $(find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
+               -not -path "*/node_modules/*" -not -path "*/.next/*" \
+               -not -path "*/__pycache__/*" -not -path "./migrations/*"); do
+      LINES=$(wc -l < "$f")
+      if [ "$LINES" -gt "$MAX" ]; then
+        echo "::error file=$f:: $LINES lines (max $MAX)"
+        FAIL=1
+      fi
+    done
+    exit $FAIL
+```
+
+### 12.6 Exceptions
+
+A file may legitimately exceed 400 lines **only** if:
+
+1.  It is auto-generated (migrations, schemas, etc.).
+2.  It is a large flat data structure (e.g., a constants file with
+    200 small entries) — and even then, prefer a generated JSON/YAML
+    file loaded at runtime.
+3.  The user explicitly approves an exception in the PR description.
+
+**Exceptions must be justified in the PR body** with:
+
+``` text
+## File Size Exception
+
+- File: `src/modules/algorithms/service.py` (487 lines)
+- Reason: Generated from OpenAPI spec; cannot split without breaking
+  schema ↔ service round-trip.
+- Alternative considered: ❌ Would require schema duplication.
+- Approved by: @<user>
+```
+
+### 12.7 Refactoring Trigger
+
+When you find yourself wanting to add the 401st line to a file:
+
+1.  **Stop.**
+2.  Ask: what is the new responsibility being added?
+3.  Extract it into a sibling module / sibling file.
+4.  Update imports.
+5.  Verify all tests still pass.
+6.  Commit the split as its own commit before the feature commit.
+
+### 12.8 Per-Session Check
+
+After each code-writing iteration, run:
+
+``` bash
+# Find files > 350 lines (warning)
+find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
+  -not -path "*/node_modules/*" -not -path "*/.next/*" \
+  -not -path "*/__pycache__/*" -not -path "./migrations/*" \
+  -exec wc -l {} + | awk '$1 > 350' | sort -rn
+
+# Find files > 400 lines (block)
+find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.tsx" \) \
+  -not -path "*/node_modules/*" -not -path "*/.next/*" \
+  -not -path "*/__pycache__/*" -not -path "./migrations/*" \
+  -exec wc -l {} + | awk '$1 > 400' | sort -rn
+```
+
+Zero output = pass.
+
+---
+
+## 13. References
 
 - Architecture: `ARCHITECTURE.md`
 - Backend plan: `ALGOVISION_BACKEND_PLAN.md`
