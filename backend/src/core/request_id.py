@@ -11,7 +11,7 @@ Refs: ALGOVISION_BACKEND_PLAN.md §13 (B6.2)
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import structlog
 from fastapi import FastAPI, Request, Response
@@ -31,6 +31,11 @@ def get_request_id(request: Request) -> str | None:
     return getattr(request.state, "request_id", None)
 
 
+def bind_user_id(user_id: UUID) -> None:
+    """Add the authenticated user's safe identifier to log context."""
+    structlog.contextvars.bind_contextvars(user_id=str(user_id))
+
+
 async def request_id_middleware(
     request: Request,
     call_next: RequestHandler,
@@ -45,6 +50,7 @@ async def request_id_middleware(
         response.headers[REQUEST_ID_HEADER] = request_id
         return response
     finally:
+        structlog.contextvars.unbind_contextvars("user_id")
         structlog.contextvars.reset_contextvars(**tokens)
 
 

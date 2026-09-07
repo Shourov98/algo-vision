@@ -40,6 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.db import get_session
 from src.core.errors import TokenInvalid
+from src.core.request_id import bind_user_id
 from src.core.settings import Settings, get_settings
 from src.modules.auth.repository import RefreshTokensRepository
 from src.modules.auth.service import AuthService
@@ -106,4 +107,6 @@ async def get_current_user(
     token = await _extract_access_token(request)
     if token is None:
         raise TokenInvalid("Access token is missing.")
-    return await service.get_current_user(token)
+    user = await service.get_current_user(token)
+    bind_user_id(user.id)
+    return user

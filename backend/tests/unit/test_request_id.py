@@ -6,13 +6,14 @@ Refs: ALGOVISION_BACKEND_PLAN.md §13 (B6.2)
 
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import structlog
 from fastapi import Request, Response
 from src.core.request_id import (
     REQUEST_ID_HEADER,
+    bind_user_id,
     get_request_id,
     request_id_middleware,
     resolve_request_id,
@@ -47,3 +48,20 @@ async def test_middleware_propagates_request_id_to_response_and_log_context() ->
     assert response.headers[REQUEST_ID_HEADER] == "request-from-client"
     assert observed_context["request_id"] == "request-from-client"
     assert "request_id" not in structlog.contextvars.get_contextvars()
+
+
+@pytest.mark.asyncio
+async def test_middleware_clears_authenticated_user_context() -> None:
+    request = _request()
+    user_id = uuid4()
+    observed_context: dict[str, object] = {}
+
+    async def _call_next(_: Request) -> Response:
+        bind_user_id(user_id)
+        observed_context.update(structlog.contextvars.get_contextvars())
+        return Response()
+
+    await request_id_middleware(request, _call_next)
+
+    assert observed_context["user_id"] == str(user_id)
+    assert "user_id" not in structlog.contextvars.get_contextvars()
