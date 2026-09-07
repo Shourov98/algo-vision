@@ -27,6 +27,7 @@ from src.core.db import dispose_engine, engine_status, init_engine
 from src.core.errors import AppError
 from src.core.logging import configure_logging, log
 from src.core.rate_limit import build_limiter
+from src.core.request_id import get_request_id, install_request_id_middleware
 from src.core.settings import Settings, get_settings
 from src.modules.auth.router import router as auth_router
 from src.modules.catalog.router import all_routers as catalog_routers
@@ -80,6 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=_lifespan,
     )
 
+    install_request_id_middleware(application)
     _register_error_handlers(application)
     _register_rate_limit_handlers(application, settings)
     application.include_router(health_router)
@@ -124,8 +126,8 @@ def _register_error_handlers(application: FastAPI) -> None:
     Unexpected exceptions keep their default 500 behavior so bugs are
     never hidden behind a friendly envelope.
 
-    The request_id field is filled when middleware (B6.3) lands; for
-    now we leave it None so the schema is stable.
+    The request ID is set by the B6.2 middleware and included in the
+    error payload so client reports can be correlated with server logs.
     """
 
     @application.exception_handler(AppError)
@@ -143,7 +145,7 @@ def _register_error_handlers(application: FastAPI) -> None:
             method=request.method,
             message=exc.message,
         )
-        payload = exc.to_payload(request_id=None)
+        payload = exc.to_payload(request_id=get_request_id(request))
         return JSONResponse(
             status_code=exc.status_code,
             content=payload.model_dump(exclude_none=True),
@@ -188,7 +190,9 @@ def _register_rate_limit_handlers(application: FastAPI, settings: Settings) -> N
         )
         return JSONResponse(
             status_code=envelope.status_code,
-            content=envelope.to_payload().model_dump(exclude_none=True),
+            content=envelope.to_payload(request_id=get_request_id(request)).model_dump(
+                exclude_none=True
+            ),
         )
 
 

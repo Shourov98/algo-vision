@@ -107,7 +107,7 @@ def test_app_error_becomes_json_envelope(test_settings: Settings) -> None:
     body = response.json()
     assert body["code"] == "user.not_found"
     assert body["message"] == "u-42"
-    assert body.get("request_id") is None  # filled by B6.3 middleware
+    assert body["request_id"] == response.headers["X-Request-ID"]
     assert "details" not in body or body["details"] is None
 
 
