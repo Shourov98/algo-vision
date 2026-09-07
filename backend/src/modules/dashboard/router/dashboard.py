@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
+from src.core.rate_limit import RATE_LIMIT_DASHBOARD, make_rate_limit_dependency
 from src.modules.auth.dependencies import get_current_user
 from src.modules.dashboard.dependencies import get_dashboard_service
 from src.modules.dashboard.schemas import DashboardSummary
@@ -50,6 +51,7 @@ router = APIRouter(
     "/summary",
     response_model=DashboardSummary,
     summary="Home dashboard projection",
+    dependencies=[Depends(make_rate_limit_dependency(RATE_LIMIT_DASHBOARD))],
 )
 async def get_dashboard_summary(
     user: User = Depends(get_current_user),
