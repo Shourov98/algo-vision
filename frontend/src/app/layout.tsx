@@ -11,11 +11,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className="dark h-full antialiased"
-    >
-      <body className="min-h-full bg-background text-foreground"><QueryProvider><div className="flex min-h-screen flex-col"><Header /><main className="flex-1">{children}</main><Footer /></div></QueryProvider></body>
+    <html lang="en" className="dark h-full antialiased">
+      <body className="min-h-full bg-background text-foreground">
+        <QueryProvider>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+        </QueryProvider>
+      </body>
     </html>
   );
 }

@@ -14,8 +14,8 @@ export default function Home() {
             Make algorithms click.
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-text-muted">
-            Explore interactive visualizations that turn complex algorithmic ideas
-            into clear, memorable steps.
+            Explore interactive visualizations that turn complex algorithmic ideas into clear,
+            memorable steps.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
