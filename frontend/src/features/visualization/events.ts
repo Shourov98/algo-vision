@@ -24,18 +24,18 @@ export interface BaseEvent {
 export type AlgorithmEvent =
   | (BaseEvent & { type: "compare"; ids: ElementId[] })
   | (BaseEvent & { type: "swap"; ids: [ElementId, ElementId] })
-  | (BaseEvent & { type: "visit"; id: ElementId })
+  | (BaseEvent & { type: "visit"; elementId: ElementId })
   | (BaseEvent & { type: "select"; ids: ElementId[] })
-  | (BaseEvent & { type: "insert"; id: ElementId; value: unknown })
-  | (BaseEvent & { type: "delete"; id: ElementId })
-  | (BaseEvent & { type: "update"; id: ElementId; value: unknown })
-  | (BaseEvent & { type: "mark"; id: ElementId; status: MarkStatus })
+  | (BaseEvent & { type: "insert"; elementId: ElementId; value: unknown })
+  | (BaseEvent & { type: "delete"; elementId: ElementId })
+  | (BaseEvent & { type: "update"; elementId: ElementId; value: unknown })
+  | (BaseEvent & { type: "mark"; elementId: ElementId; status: MarkStatus })
   | (BaseEvent & { type: "relax"; from: ElementId; to: ElementId; weight?: number })
   | (BaseEvent & { type: "found"; ids: ElementId[] })
-  | (BaseEvent & { type: "enqueue"; id: ElementId })
-  | (BaseEvent & { type: "dequeue"; id: ElementId })
-  | (BaseEvent & { type: "push"; id: ElementId; value: unknown })
-  | (BaseEvent & { type: "pop"; id: ElementId })
+  | (BaseEvent & { type: "enqueue"; elementId: ElementId })
+  | (BaseEvent & { type: "dequeue"; elementId: ElementId })
+  | (BaseEvent & { type: "push"; elementId: ElementId; value: unknown })
+  | (BaseEvent & { type: "pop"; elementId: ElementId })
   | (BaseEvent & { type: "complete"; summary?: Record<string, unknown> });
 
 type EventDraft<Event extends BaseEvent> = Event extends Event ? Omit<Event, "id" | "t"> : never;
