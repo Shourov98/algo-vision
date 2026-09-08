@@ -13,7 +13,9 @@ export function AlgorithmCard({ algorithm }: { algorithm: AlgorithmSummary }) {
     <article className="flex min-h-56 flex-col rounded-lg border border-border bg-surface-raised p-5 transition-colors hover:bg-surface-hover">
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm font-medium text-accent-strong">{algorithm.category}</p>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${difficultyStyles[algorithm.difficulty]}`}>
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${difficultyStyles[algorithm.difficulty]}`}
+        >
           {algorithm.difficulty}
         </span>
       </div>
