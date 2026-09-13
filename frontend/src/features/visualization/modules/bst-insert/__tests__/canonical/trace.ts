@@ -1,0 +1,2 @@
+export const CANONICAL_INSERT_VALUE = 7;
+export const CANONICAL_EVENT_COUNT = 11;
