@@ -17,6 +17,7 @@ export interface AlgorithmMeta {
 export interface RunOptions {
   seed?: number;
   highlightLines?: boolean;
+  target?: number;
 }
 
 export interface TreeNode {
