@@ -1,10 +1,10 @@
 """Cross-feature utilities used by more than one module.
 
-Contents (filled in later phase-1 commits):
-- pagination.py    : limit/offset + cursor math, link headers
-- filters.py       : typed filter base classes
-- ids.py           : id generation helpers
-- time.py          : UTC clock helpers
+Contents:
+- pagination.py    : limit/offset + page envelope (Page[T])
+- filters.py       : SortOrder enum shared by entity filters
+- events.py        : EventDispatcherProtocol, InProcessEventDispatcher,
+                     NoopEventDispatcher, ItemViewedEvent
 
 Anything in here must be domain-agnostic. If a helper references
 "users" or "algorithms", it belongs in the feature module instead.
