@@ -31,6 +31,7 @@ export interface GraphNode {
   id: ElementId;
   label?: string;
   value?: unknown;
+  position?: { x: number; y: number };
 }
 
 export interface GraphEdge {
