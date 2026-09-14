@@ -8,6 +8,7 @@ import { CurrentStepPanel } from "@/components/visualization/current-step-panel"
 import { VisualizationCanvas } from "@/components/visualization/visualization-canvas";
 import { VisualizationControls } from "@/components/visualization/visualization-controls";
 import { ArrayAdapter } from "@/features/visualization/adapters/array-adapter";
+import { reportAlgorithmCompletionBySlug } from "@/lib/api/progress";
 import { StepScheduler } from "@/features/visualization/player/step-scheduler";
 import type { ArrayAlgorithmModule } from "@/features/visualization/modules/types";
 import { useEngineStore } from "@/stores/engine-store";
@@ -22,6 +23,7 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
   const store = useEngineStore();
   const load = useEngineStore((state) => state.load);
   const scheduler = useRef<StepScheduler | null>(null);
+  const reportedSessions = useRef(new Set<string>());
 
   useEffect(() => {
     load(module, module.defaultInput());
@@ -40,6 +42,17 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
     if (store.status === "playing") scheduler.current?.play();
     else scheduler.current?.pause();
   }, [store.status]);
+
+  useEffect(() => {
+    if (
+      store.status !== "complete" ||
+      !store.sessionId ||
+      reportedSessions.current.has(store.sessionId)
+    )
+      return;
+    reportedSessions.current.add(store.sessionId);
+    void reportAlgorithmCompletionBySlug(module.slug).catch(() => undefined);
+  }, [module.slug, store.sessionId, store.status]);
 
   const currentEvent = store.status === "idle" ? undefined : store.events[store.currentStep];
   const state = useMemo(() => {
