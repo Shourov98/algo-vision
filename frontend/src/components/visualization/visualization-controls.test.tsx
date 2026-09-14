@@ -30,4 +30,34 @@ describe("VisualizationControls", () => {
     expect(onNext).toHaveBeenCalledOnce();
     expect(onSpeedChange).toHaveBeenCalledWith(80);
   });
+
+  it("supports documented keyboard shortcuts", () => {
+    const onPlay = vi.fn();
+    const onNext = vi.fn();
+    const onPrev = vi.fn();
+    const onReset = vi.fn();
+    render(
+      <VisualizationControls
+        canNext
+        canPrev
+        onNext={onNext}
+        onPause={vi.fn()}
+        onPlay={onPlay}
+        onPrev={onPrev}
+        onReset={onReset}
+        onSeek={vi.fn()}
+        onSpeedChange={vi.fn()}
+        speed={150}
+        status="paused"
+      />,
+    );
+    fireEvent.keyDown(window, { key: " " });
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "r" });
+    expect(onPlay).toHaveBeenCalled();
+    expect(onPrev).toHaveBeenCalled();
+    expect(onNext).toHaveBeenCalled();
+    expect(onReset).toHaveBeenCalled();
+  });
 });

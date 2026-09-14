@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { PlayerStatus } from "@/features/visualization/player/state-machine";
 import { playbackSpeeds } from "@/stores/engine-store";
 
@@ -19,6 +20,33 @@ export interface VisualizationControlsProps {
 
 export function VisualizationControls(props: VisualizationControlsProps) {
   const playing = props.status === "playing";
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        if (playing) props.onPause();
+        else props.onPlay();
+      } else if (event.key === "ArrowLeft" && props.canPrev) {
+        event.preventDefault();
+        props.onPrev();
+      } else if (event.key === "ArrowRight" && props.canNext) {
+        event.preventDefault();
+        props.onNext();
+      } else if (event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        props.onReset();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [playing, props]);
   return (
     <section
       aria-label="Visualization controls"
@@ -27,6 +55,7 @@ export function VisualizationControls(props: VisualizationControlsProps) {
       <button
         className="rounded-md bg-accent-strong px-3 py-2 font-semibold text-surface"
         onClick={playing ? props.onPause : props.onPlay}
+        title={playing ? "Pause (Space)" : "Play (Space)"}
         type="button"
       >
         {playing ? "Pause" : "Play"}
@@ -35,6 +64,7 @@ export function VisualizationControls(props: VisualizationControlsProps) {
         className="rounded-md border border-border px-3 py-2 disabled:opacity-50"
         disabled={!props.canPrev}
         onClick={props.onPrev}
+        title="Previous step (Left Arrow)"
         type="button"
       >
         Previous
@@ -43,6 +73,7 @@ export function VisualizationControls(props: VisualizationControlsProps) {
         className="rounded-md border border-border px-3 py-2 disabled:opacity-50"
         disabled={!props.canNext}
         onClick={props.onNext}
+        title="Next step (Right Arrow)"
         type="button"
       >
         Next
@@ -50,6 +81,7 @@ export function VisualizationControls(props: VisualizationControlsProps) {
       <button
         className="rounded-md border border-border px-3 py-2"
         onClick={props.onReset}
+        title="Reset (R)"
         type="button"
       >
         Reset
