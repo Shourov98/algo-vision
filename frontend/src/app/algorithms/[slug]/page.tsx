@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AlgorithmVisualizer } from "@/components/visualization/algorithm-visualizer";
+import { DeferredAlgorithmVisualizer } from "@/components/visualization/deferred-algorithm-visualizer";
 import { VisualizationShell } from "@/components/visualization/visualization-shell";
 import { bubbleSortModule } from "@/features/visualization/modules/bubble-sort";
 import { bubbleSortCpp } from "@/features/visualization/modules/bubble-sort/code/cpp";
@@ -46,7 +46,7 @@ export default async function AlgorithmPage({ params }: { params: Promise<{ slug
       slug={algorithm.module.slug}
       title={algorithm.module.meta.name}
     >
-      <AlgorithmVisualizer module={algorithm.module} sources={algorithm.sources} />
+      <DeferredAlgorithmVisualizer module={algorithm.module} sources={algorithm.sources} />
     </VisualizationShell>
   );
 }

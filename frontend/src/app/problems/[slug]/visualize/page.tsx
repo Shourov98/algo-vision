@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AlgorithmVisualizer } from "@/components/visualization/algorithm-visualizer";
+import { DeferredAlgorithmVisualizer } from "@/components/visualization/deferred-algorithm-visualizer";
 import { VisualizationShell } from "@/components/visualization/visualization-shell";
 import { twoSumModule } from "@/features/visualization/modules/two-sum";
 import { twoSumCpp } from "@/features/visualization/modules/two-sum/code/cpp";
@@ -21,7 +21,7 @@ export default async function ProblemVisualizationPage({
       slug={twoSumModule.slug}
       title={twoSumModule.meta.name}
     >
-      <AlgorithmVisualizer
+      <DeferredAlgorithmVisualizer
         module={twoSumModule}
         sources={{ cpp: twoSumCpp, python: twoSumPython, typescript: twoSumTypeScript }}
       />
