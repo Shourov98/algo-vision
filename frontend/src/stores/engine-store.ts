@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import type { AlgorithmEvent } from "@/features/visualization/events";
-import type { AlgorithmModule } from "@/features/visualization/modules/types";
+import type { AlgorithmModule, RunOptions } from "@/features/visualization/modules/types";
 import { transition, type PlayerStatus } from "@/features/visualization/player/state-machine";
 
 export const playbackSpeeds = [1000, 700, 500, 350, 200, 100] as const;
@@ -17,7 +17,7 @@ export interface EngineStore {
   status: PlayerStatus;
   speed: PlaybackSpeed;
   visualizationState: unknown;
-  load(module: AlgorithmModule, input: unknown): void;
+  load(module: AlgorithmModule, input: unknown, options?: RunOptions): void;
   play(): void;
   pause(): void;
   next(): void;
@@ -44,8 +44,8 @@ export const useEngineStore = create<EngineStore>()((set) => ({
   status: "idle",
   speed: 700,
   visualizationState: null,
-  load: (module, input) => {
-    const events = module.run(input);
+  load: (module, input, options) => {
+    const events = module.run(input, options);
     set({
       sessionId: createSessionId(),
       slug: module.slug,
