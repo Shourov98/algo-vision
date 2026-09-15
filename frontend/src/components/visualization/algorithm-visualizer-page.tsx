@@ -10,6 +10,10 @@ import { bubbleSortModule } from "@/features/visualization/modules/bubble-sort";
 import { bubbleSortCpp } from "@/features/visualization/modules/bubble-sort/code/cpp";
 import { bubbleSortPython } from "@/features/visualization/modules/bubble-sort/code/python";
 import { bubbleSortTypeScript } from "@/features/visualization/modules/bubble-sort/code/typescript";
+import { mergeSortModule } from "@/features/visualization/modules/merge-sort";
+import { mergeSortCpp } from "@/features/visualization/modules/merge-sort/code/cpp";
+import { mergeSortPython } from "@/features/visualization/modules/merge-sort/code/python";
+import { mergeSortTypeScript } from "@/features/visualization/modules/merge-sort/code/typescript";
 import { quickSortModule } from "@/features/visualization/modules/quick-sort";
 import { quickSortCpp } from "@/features/visualization/modules/quick-sort/code/cpp";
 import { quickSortPython } from "@/features/visualization/modules/quick-sort/code/python";
@@ -27,6 +31,10 @@ const modules = {
   "bubble-sort": {
     module: bubbleSortModule,
     sources: { cpp: bubbleSortCpp, python: bubbleSortPython, typescript: bubbleSortTypeScript },
+  },
+  "merge-sort": {
+    module: mergeSortModule,
+    sources: { cpp: mergeSortCpp, python: mergeSortPython, typescript: mergeSortTypeScript },
   },
   "quick-sort": {
     module: quickSortModule,

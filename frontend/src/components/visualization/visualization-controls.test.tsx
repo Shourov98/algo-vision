@@ -12,6 +12,7 @@ describe("VisualizationControls", () => {
       <VisualizationControls
         canNext
         canPrev={false}
+        currentStep={0}
         onNext={onNext}
         onPause={vi.fn()}
         onPlay={onPlay}
@@ -21,6 +22,7 @@ describe("VisualizationControls", () => {
         onSpeedChange={onSpeedChange}
         speed={150}
         status="paused"
+        totalSteps={4}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
@@ -40,6 +42,7 @@ describe("VisualizationControls", () => {
       <VisualizationControls
         canNext
         canPrev
+        currentStep={0}
         onNext={onNext}
         onPause={vi.fn()}
         onPlay={onPlay}
@@ -49,6 +52,7 @@ describe("VisualizationControls", () => {
         onSpeedChange={vi.fn()}
         speed={150}
         status="paused"
+        totalSteps={4}
       />,
     );
     fireEvent.keyDown(window, { key: " " });

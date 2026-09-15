@@ -8,7 +8,9 @@ export interface VisualizationControlsProps {
   status: PlayerStatus;
   canPrev: boolean;
   canNext: boolean;
+  currentStep: number;
   speed: number;
+  totalSteps: number;
   onPlay(): void;
   onPause(): void;
   onNext(): void;
@@ -100,6 +102,23 @@ export function VisualizationControls(props: VisualizationControlsProps) {
             </option>
           ))}
         </select>
+      </label>
+      <label className="flex w-full items-center gap-3 text-sm text-text-muted">
+        Timeline
+        <input
+          aria-label="Visualization timeline"
+          className="accent-accent-strong"
+          disabled={props.totalSteps === 0}
+          max={Math.max(props.totalSteps - 1, 0)}
+          min="0"
+          onChange={(event) => props.onSeek(Number(event.target.value))}
+          step="1"
+          type="range"
+          value={props.currentStep}
+        />
+        <span className="font-mono text-xs">
+          {props.totalSteps ? `${props.currentStep + 1}/${props.totalSteps}` : "0/0"}
+        </span>
       </label>
     </section>
   );
