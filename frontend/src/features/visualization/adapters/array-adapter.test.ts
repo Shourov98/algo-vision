@@ -44,6 +44,26 @@ describe("ArrayAdapter", () => {
     expect(swapped.items.map((item) => item.status)).toEqual(["swapping", "swapping"]);
   });
 
+  it("moves one item into its merge position while preserving every ID", () => {
+    const initial = ArrayAdapter.createInitialState([8, 3, 6], ["first", "second", "third"]);
+    const moved = ArrayAdapter.reduce(initial, {
+      elementId: "third",
+      fromIndex: 2,
+      id: "move-1",
+      message: "Move 6 into the merged range.",
+      t: 1,
+      toIndex: 1,
+      type: "move",
+    });
+
+    expect(moved.items.map((item) => [item.id, item.value])).toEqual([
+      ["first", 8],
+      ["third", 6],
+      ["second", 3],
+    ]);
+    expect(moved.items[1]?.status).toBe("active");
+  });
+
   it("rejects events that reference unknown element IDs", () => {
     const initial = ArrayAdapter.createInitialState([8]);
     expect(() =>

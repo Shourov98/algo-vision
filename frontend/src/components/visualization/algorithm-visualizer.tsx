@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CodePanel, type SourceLanguage } from "@/components/visualization/code-panel";
+import { ArrayVisualization } from "@/components/visualization/array-visualization";
 import { ComplexityPanel } from "@/components/visualization/complexity-panel";
 import { CurrentStepPanel } from "@/components/visualization/current-step-panel";
-import { VisualizationCanvas } from "@/components/visualization/visualization-canvas";
 import { VisualizationControls } from "@/components/visualization/visualization-controls";
 import { ArrayAdapter } from "@/features/visualization/adapters/array-adapter";
 import { reportAlgorithmCompletionBySlug } from "@/lib/api/progress";
@@ -64,20 +64,11 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
 
   return (
     <div className="space-y-6">
-      <VisualizationCanvas adapterKind="array" state={state} />
-      <div aria-label="Array values" className="flex flex-wrap gap-2">
-        {state.items.map((item) => (
-          <span
-            className="rounded-md border border-border bg-surface px-3 py-2 font-mono text-foreground"
-            key={item.id}
-          >
-            {String(item.value)}
-          </span>
-        ))}
-      </div>
+      <ArrayVisualization state={state} {...(currentEvent ? { currentEvent } : {})} />
       <VisualizationControls
         canNext={store.currentStep < store.events.length - 1 && store.status !== "complete"}
         canPrev={store.currentStep > 0}
+        currentStep={store.currentStep}
         onNext={store.next}
         onPause={store.pause}
         onPlay={store.play}
@@ -87,9 +78,11 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
         onSpeedChange={(speed) => store.setSpeed(speed as typeof store.speed)}
         speed={store.speed}
         status={store.status}
+        totalSteps={store.events.length}
       />
       <CurrentStepPanel
         currentStep={store.currentStep}
+        {...(currentEvent ? { metadata: { action: currentEvent.type } } : {})}
         totalSteps={store.events.length}
         {...(currentEvent ? { message: currentEvent.message } : {})}
       />

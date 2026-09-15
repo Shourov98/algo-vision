@@ -21,6 +21,7 @@ describe("accessibility", () => {
       <VisualizationControls
         canNext
         canPrev
+        currentStep={0}
         onNext={() => undefined}
         onPause={() => undefined}
         onPlay={() => undefined}
@@ -30,6 +31,7 @@ describe("accessibility", () => {
         onSpeedChange={() => undefined}
         speed={150}
         status="paused"
+        totalSteps={4}
       />,
     );
     await expectNoViolations(container);

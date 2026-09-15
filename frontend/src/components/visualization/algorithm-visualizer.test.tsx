@@ -16,9 +16,11 @@ describe("AlgorithmVisualizer", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByLabelText("Array values")).toHaveTextContent("52814"));
+    await waitFor(() => expect(screen.getByLabelText("Value 5 at index 0")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    await waitFor(() => expect(screen.getByLabelText("Array values")).toHaveTextContent("25814"));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Value 2 at index 0, active")).toBeInTheDocument(),
+    );
   });
 });

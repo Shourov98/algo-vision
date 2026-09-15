@@ -29,6 +29,12 @@ function setStatuses(items: ArrayItem[], ids: ElementId[], status: MarkStatus) {
   for (const id of ids) getItem(items, id).status = status;
 }
 
+function clearTransientStatuses(items: ArrayItem[]) {
+  for (const item of items) {
+    if (["active", "comparing", "swapping"].includes(item.status)) item.status = "idle";
+  }
+}
+
 export const ArrayAdapter: VisualizationAdapter<ArrayState> = {
   kind: "array",
 
@@ -45,9 +51,11 @@ export const ArrayAdapter: VisualizationAdapter<ArrayState> = {
 
     switch (event.type) {
       case "compare":
+        clearTransientStatuses(items);
         setStatuses(items, event.ids, "comparing");
         break;
       case "swap": {
+        clearTransientStatuses(items);
         const [firstId, secondId] = event.ids;
         const firstIndex = items.findIndex((item) => item.id === firstId);
         const secondIndex = items.findIndex((item) => item.id === secondId);
@@ -55,6 +63,15 @@ export const ArrayAdapter: VisualizationAdapter<ArrayState> = {
         if (secondIndex === -1) getItem(items, secondId);
         [items[firstIndex], items[secondIndex]] = [items[secondIndex]!, items[firstIndex]!];
         setStatuses(items, event.ids, "swapping");
+        break;
+      }
+      case "move": {
+        clearTransientStatuses(items);
+        const currentIndex = items.findIndex((item) => item.id === event.elementId);
+        if (currentIndex === -1) getItem(items, event.elementId);
+        const [item] = items.splice(currentIndex, 1);
+        items.splice(event.toIndex, 0, item!);
+        setStatuses(items, [event.elementId], "active");
         break;
       }
       case "visit":
