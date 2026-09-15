@@ -15,15 +15,20 @@ function withLine<Event extends AlgorithmEventDraft>(
   return options?.highlightLines === false ? event : { ...event, line };
 }
 
-function assertSorted(values: number[]) {
+function assertSorted(values: number[], direction: "ascending" | "descending") {
   if (!values.every(Number.isFinite))
     throw new TypeError("Binary Search requires finite number values.");
-  if (values.some((value, index) => index > 0 && values[index - 1]! > value))
-    throw new RangeError("Binary Search requires values in ascending order.");
+  const sorted = values.every((value, index) => {
+    if (index === 0) return true;
+    const previous = values[index - 1]!;
+    return direction === "ascending" ? previous <= value : previous >= value;
+  });
+  if (!sorted) throw new RangeError(`Binary Search requires values in ${direction} order.`);
 }
 
 export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
-  assertSorted(input);
+  const direction = options?.direction ?? "ascending";
+  assertSorted(input, direction);
   const target = options?.target ?? DEFAULT_TARGET;
   if (!Number.isFinite(target)) throw new TypeError("Binary Search requires a finite target.");
 
@@ -94,7 +99,8 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
         options,
       ),
     );
-    if (value < target) low = middle + 1;
+    const discardLeft = direction === "ascending" ? value < target : value > target;
+    if (discardLeft) low = middle + 1;
     else high = middle - 1;
   }
 

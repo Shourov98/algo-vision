@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CodePanel, type SourceLanguage } from "@/components/visualization/code-panel";
+import { ArrayInputPanel } from "@/components/visualization/array-input-panel";
 import { ArrayVisualization } from "@/components/visualization/array-visualization";
 import { ComplexityPanel } from "@/components/visualization/complexity-panel";
 import { CurrentStepPanel } from "@/components/visualization/current-step-panel";
 import { VisualizationControls } from "@/components/visualization/visualization-controls";
 import { ArrayAdapter } from "@/features/visualization/adapters/array-adapter";
+import type { ArrayRunConfiguration } from "@/features/visualization/array-run-configuration";
 import type { AlgorithmEvent } from "@/features/visualization/events";
 import { reportAlgorithmCompletionBySlug } from "@/lib/api/progress";
 import { StepScheduler } from "@/features/visualization/player/step-scheduler";
@@ -21,8 +23,24 @@ export interface AlgorithmVisualizerProps {
 
 const EMPTY_EVENTS: AlgorithmEvent[] = [];
 
+function createConfiguration(module: ArrayAlgorithmModule<number[]>): ArrayRunConfiguration {
+  const values = module.defaultInput();
+  return {
+    direction: "ascending",
+    ...(module.capabilities.supportsTarget
+      ? { target: values[Math.floor(values.length / 2)] }
+      : {}),
+    values,
+  };
+}
+
 export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProps) {
+  return <AlgorithmVisualizerInstance key={module.slug} module={module} sources={sources} />;
+}
+
+function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerProps) {
   const [language, setLanguage] = useState<SourceLanguage>("typescript");
+  const [configuration, setConfiguration] = useState(() => createConfiguration(module));
   const store = useEngineStore();
   const load = useEngineStore((state) => state.load);
   const scheduler = useRef<StepScheduler | null>(null);
@@ -33,7 +51,8 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
   const status = isCurrentModule ? store.status : "idle";
 
   useEffect(() => {
-    load(module, module.defaultInput());
+    const nextConfiguration = createConfiguration(module);
+    load(module, nextConfiguration.values, nextConfiguration);
   }, [load, module]);
 
   useEffect(() => {
@@ -63,14 +82,24 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
   }, [isCurrentModule, module.slug, status, store.sessionId]);
 
   const currentEvent = status === "idle" ? undefined : events[currentStep];
+  const input =
+    isCurrentModule && Array.isArray(store.visualizationState)
+      ? store.visualizationState
+      : configuration.values;
   const state = useMemo(() => {
-    const initial = ArrayAdapter.createInitialState(module.defaultInput());
+    const initial = ArrayAdapter.createInitialState(input);
     const appliedEvents = status === "idle" ? [] : events.slice(0, currentStep + 1);
     return appliedEvents.reduce(ArrayAdapter.reduce, initial);
-  }, [currentStep, events, module, status]);
+  }, [currentStep, events, input, status]);
 
   return (
     <div className="space-y-6">
+      <ArrayInputPanel
+        capabilities={module.capabilities}
+        configuration={configuration}
+        onChange={setConfiguration}
+        onStart={() => load(module, configuration.values, configuration)}
+      />
       <ArrayVisualization
         state={state}
         stepDuration={store.speed}

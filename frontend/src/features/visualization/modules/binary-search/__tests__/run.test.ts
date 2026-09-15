@@ -40,4 +40,13 @@ describe("binary-search/run", () => {
     expect(complete.summary).toEqual({ found: false, index: -1, target: 8 });
     expect(() => run([3, 1], { target: 1 })).toThrow(/ascending order/);
   });
+
+  it("finds a target in descending order", () => {
+    const input = [11, 9, 7, 5, 3, 1];
+    const events = run(input, { direction: "descending", target: 7 });
+    const complete = events.at(-1);
+
+    if (!complete || complete.type !== "complete") throw new Error("Expected complete event.");
+    expect(complete.summary).toEqual({ found: true, index: 2, target: 7 });
+  });
 });
