@@ -810,3 +810,160 @@ Phase 7 — Polish
 -   Sharing a visualization state via URL (deep link to a specific step).
 -   Mobile-native gestures (swipe to step).
 -   Offline support via service worker for already-loaded algorithms.
+
+## 23. Configurable Array and Search Visualizations — Implementation Plan
+
+> **Status:** Planned follow-up. This section is the source of truth for
+> improving the interactive array visualizations after the initial engine
+> and visualizer rollout. Implement in the listed order; do not combine
+> these slices with unrelated page or backend work.
+
+### 23.1 Product Goal
+
+Every array-based visualization must be an interactive learning tool,
+not a fixed demonstration. A learner must be able to control the number
+of elements, edit their values, choose ascending or descending order
+where meaningful, and understand why each event changes the visible
+state.
+
+This plan covers Bubble Sort, Merge Sort, Quick Sort, and Binary
+Search. Tree, graph, linked-list, and problem visualizations keep their
+own input models and are out of scope for these slices.
+
+### 23.2 Current Gap
+
+The current Binary Search module only accepts ascending input and has a
+fixed default target. It does not explicitly visualize the active search
+range or the low/middle/high pointers. Array visualizations also need a
+shared input surface rather than module-specific, hard-coded examples.
+
+### 23.3 Shared Run Configuration
+
+Introduce a frontend-only, serializable configuration owned by the UI
+layer. The execution engine must continue to receive only a concrete
+input and `RunOptions`; it must not read React state, the DOM, or a
+random source.
+
+```ts
+type SortDirection = "ascending" | "descending";
+
+interface ArrayRunConfiguration {
+  values: number[];
+  direction: SortDirection;
+  target?: number; // required only by search modules
+}
+
+interface ArrayModuleCapabilities {
+  supportsDirection: boolean;
+  requiresSortedInput: boolean;
+  minItems: number;
+  maxItems: number;
+  supportsTarget: boolean;
+}
+```
+
+Rules:
+
+- The UI owns draft values, target, direction, validation, and reset.
+- `run(input, options)` remains deterministic and receives a cloned
+  value array plus explicit options.
+- Use stable element IDs for a run. Changing the configuration creates
+  a new run; never apply old events to the new values.
+- Start with a readable range of 2–12 elements. Validation prevents
+  non-finite values and blank inputs.
+- The same direction option controls both the algorithm comparator and
+  the textual explanation. Do not sort one way while describing the
+  other.
+
+### 23.4 UI Contract
+
+Create one reusable `ArrayInputPanel` composed by the array visualizer.
+It must provide:
+
+- element-count decrement/increment buttons and a keyboard-accessible
+  range control;
+- editable numeric values, add/remove actions, reset, and deterministic
+  sample presets;
+- ascending/descending selection for supported modules;
+- a target field for search modules only;
+- a `Start over` action that validates, creates a new engine session,
+  and returns playback to step zero;
+- inline, `aria-live` validation messages. Play is disabled only while
+  the draft is invalid.
+
+For Binary Search, show a `Sort for search` action. It sorts a copy of
+the draft in the selected direction; it must never silently reorder the
+user's input. If the input is not sorted for the selected direction,
+show a clear validation message instead of throwing an engine error.
+
+### 23.5 Search Visualization Contract
+
+Binary Search must support both directions and expose its decision
+state in events. Extend the event schema with a search-range event (or
+an equivalent typed event) containing stable IDs for `low`, `middle`,
+`high`, and eliminated IDs. Do not infer these ranges from display
+indices in React.
+
+Visual meaning:
+
+| State | Required presentation |
+|---|---|
+| Active range | Blue range treatment with visible low/high labels |
+| Middle value | Amber bar and `mid` label |
+| Eliminated value | Muted gray bar with an "excluded" text state |
+| Search target | Visible target chip/value above the array |
+| Found value | Green success state and final index announcement |
+| Not found | Clear completion message and all rejected ranges retained |
+
+The explanation must state the direction-dependent decision. Examples:
+
+- Ascending: `9 is greater than target 7, so discard the right half.`
+- Descending: `9 is greater than target 7, so discard the left half.`
+
+### 23.6 Sorting Visualization Contract
+
+Bubble Sort, Merge Sort, and Quick Sort must accept the direction in
+`RunOptions` and use one shared comparison helper. Their final states
+must be ascending left-to-right for `ascending` and descending
+left-to-right for `descending`.
+
+Keep algorithm-specific teaching cues:
+
+- **Bubble Sort:** current comparison, swap movement, and final-pass
+  boundary.
+- **Merge Sort:** separate left/right subarray labels, merge range, and
+  positional movement for each inserted element.
+- **Quick Sort:** pivot marker, active partition bounds, and movement
+  across the pivot.
+
+Use positional animation only for a real reorder. `prefers-reduced-motion`
+must replace movement with an immediate state update and the same text
+explanation.
+
+### 23.7 Delivery Slices
+
+| ID | Scope | Primary files / boundaries | Required verification |
+|---|---|---|---|
+| AV.1 | Shared types, capabilities, validation, and deterministic presets | `modules/types.ts`, UI-only configuration hook/schema | Unit tests for validation and session reset |
+| AV.2 | Reusable array input panel | new visualization input components; no algorithm logic in React | RTL keyboard/edit/add/remove tests and axe audit |
+| AV.3 | Correct Binary Search for ascending and descending order | binary-search module, typed range events, array renderer | Canonical traces for found/not-found in both directions |
+| AV.4 | Direction-aware sorting | Bubble, Merge, Quick module runners and shared comparator | Determinism, direction, and stable-ID reducer tests |
+| AV.5 | Teaching-quality rendering and end-to-end coverage | array renderer, step panel, Playwright flows | Reduced-motion test, visual/browser smoke, build, Lighthouse regression check |
+
+One delivery slice per branch and PR. Each PR targets `dev-frontend`
+while that branch is in use; the integration PR then targets `develop`.
+
+### 23.8 Acceptance Checklist
+
+```text
+□ A learner can add/remove values and edit every array value.
+□ All supported sort modules run correctly in ascending and descending order.
+□ Binary Search validates sortedness and works in ascending and descending order.
+□ Binary Search displays low, middle, high, active range, exclusions, target, and outcome.
+□ A configuration change creates a fresh session with no stale event IDs.
+□ Playback, seek, reset, keyboard controls, and code highlighting remain functional.
+□ Motion communicates an algorithm state change; reduced-motion remains understandable.
+□ Color is paired with labels/text and WCAG checks pass.
+□ Unit, component, E2E, lint, typecheck, format, and production-build checks pass.
+□ No TypeScript source file exceeds 400 lines.
+```

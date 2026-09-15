@@ -95,7 +95,9 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
         {
           type: "select",
           ids: items.slice(low, high + 1).map((item) => item.id),
+          leftIds: items.slice(low, middle + 1).map((item) => item.id),
           message: `Merge the sorted ranges from ${low} to ${middle} and ${middle + 1} to ${high}.`,
+          rightIds: items.slice(middle + 1, high + 1).map((item) => item.id),
         },
         6,
         options,

@@ -20,17 +20,17 @@ describe("VisualizationControls", () => {
         onReset={vi.fn()}
         onSeek={vi.fn()}
         onSpeedChange={onSpeedChange}
-        speed={150}
+        speed={700}
         status="paused"
         totalSteps={4}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    fireEvent.change(screen.getByLabelText("Playback speed"), { target: { value: "80" } });
+    fireEvent.change(screen.getByLabelText("Playback speed"), { target: { value: "200" } });
     expect(onPlay).toHaveBeenCalledOnce();
     expect(onNext).toHaveBeenCalledOnce();
-    expect(onSpeedChange).toHaveBeenCalledWith(80);
+    expect(onSpeedChange).toHaveBeenCalledWith(200);
   });
 
   it("supports documented keyboard shortcuts", () => {
@@ -50,7 +50,7 @@ describe("VisualizationControls", () => {
         onReset={onReset}
         onSeek={vi.fn()}
         onSpeedChange={vi.fn()}
-        speed={150}
+        speed={700}
         status="paused"
         totalSteps={4}
       />,

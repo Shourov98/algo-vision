@@ -29,7 +29,7 @@ describe("accessibility", () => {
         onReset={() => undefined}
         onSeek={() => undefined}
         onSpeedChange={() => undefined}
-        speed={150}
+        speed={700}
         status="paused"
         totalSteps={4}
       />,

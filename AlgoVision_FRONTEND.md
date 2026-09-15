@@ -455,6 +455,49 @@ move.
 
 This avoids React reconciliation bugs during swaps.
 
+### 11.1 Configurable Array Runs and Search Semantics
+
+Array visualizations must not be limited to a fixed sample. The UI layer
+must provide one reusable input panel for every array algorithm. It owns
+editable values, element count, sort direction, optional search target,
+and validation; algorithm modules remain pure and receive only the
+validated input and explicit options.
+
+```ts
+type SortDirection = "ascending" | "descending";
+
+interface ArrayRunOptions {
+  direction: SortDirection;
+  target?: number;
+}
+```
+
+Requirements:
+
+- Support 2–12 finite numeric values with add, remove, edit, reset, and
+  deterministic sample actions.
+- Sorting modules must produce the selected ascending or descending
+  result and explain comparisons in that direction.
+- Search modules must expose an editable target and must validate that
+  input is sorted in the selected direction before an execution starts.
+- A `Sort for search` action may sort a copy of the values only after
+  explicit user action; it must never silently change input.
+- Updating configuration creates a fresh execution session. Events from
+  a previous module or previous input must never be reduced against the
+  new array.
+
+Binary Search must emit typed search-range state with stable IDs for
+`low`, `middle`, `high`, and eliminated values. The array renderer must
+show visible low/mid/high labels, active and excluded ranges, target,
+and a found/not-found outcome. In particular, do not derive these
+semantics from an item’s temporary display index inside a React
+component.
+
+The visualizer must pair every status color with text or a label and
+must honor `prefers-reduced-motion`. Reordered bars may animate between
+their measured positions, but reduced-motion rendering must retain the
+same event message and state transition.
+
 ------------------------------------------------------------------------
 
 # 12. Graph Visualization
