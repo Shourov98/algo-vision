@@ -4,6 +4,13 @@ import type { ArrayAlgorithmModule } from "@/features/visualization/modules/type
 export { quickSortMeta } from "@/features/visualization/modules/quick-sort/meta";
 export { run } from "@/features/visualization/modules/quick-sort/run";
 export const quickSortModule: ArrayAlgorithmModule<number[]> = {
+  capabilities: {
+    maxItems: 12,
+    minItems: 2,
+    requiresSortedInput: false,
+    supportsDirection: true,
+    supportsTarget: false,
+  },
   slug: "quick-sort",
   visualizationKind: "array",
   meta: quickSortMeta,

@@ -6,6 +6,13 @@ export { mergeSortMeta } from "@/features/visualization/modules/merge-sort/meta"
 export { run } from "@/features/visualization/modules/merge-sort/run";
 
 export const mergeSortModule: ArrayAlgorithmModule<number[]> = {
+  capabilities: {
+    maxItems: 12,
+    minItems: 2,
+    requiresSortedInput: false,
+    supportsDirection: true,
+    supportsTarget: false,
+  },
   slug: "merge-sort",
   visualizationKind: "array",
   meta: mergeSortMeta,

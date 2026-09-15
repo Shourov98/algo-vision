@@ -6,6 +6,13 @@ export { bubbleSortMeta } from "@/features/visualization/modules/bubble-sort/met
 export { run } from "@/features/visualization/modules/bubble-sort/run";
 
 export const bubbleSortModule: ArrayAlgorithmModule<number[]> = {
+  capabilities: {
+    maxItems: 12,
+    minItems: 2,
+    requiresSortedInput: false,
+    supportsDirection: true,
+    supportsTarget: false,
+  },
   slug: "bubble-sort",
   visualizationKind: "array",
   meta: bubbleSortMeta,

@@ -2,6 +2,13 @@ import { run } from "@/features/visualization/modules/heap-sort/run";
 import type { ArrayAlgorithmModule } from "@/features/visualization/modules/types";
 export { run } from "@/features/visualization/modules/heap-sort/run";
 export const heapSortModule: ArrayAlgorithmModule<number[]> = {
+  capabilities: {
+    maxItems: 12,
+    minItems: 2,
+    requiresSortedInput: false,
+    supportsDirection: true,
+    supportsTarget: false,
+  },
   slug: "heap-sort",
   visualizationKind: "heap",
   meta: {
