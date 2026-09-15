@@ -27,8 +27,8 @@ describe("visualization stores", () => {
   });
 
   it("accepts only supported playback speeds", () => {
-    useEngineStore.getState().setSpeed(80);
-    expect(useEngineStore.getState().speed).toBe(80);
-    expect(() => useEngineStore.getState().setSpeed(100 as PlaybackSpeed)).toThrow(RangeError);
+    useEngineStore.getState().setSpeed(200);
+    expect(useEngineStore.getState().speed).toBe(200);
+    expect(() => useEngineStore.getState().setSpeed(150 as PlaybackSpeed)).toThrow(RangeError);
   });
 });

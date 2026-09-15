@@ -64,7 +64,11 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
 
   return (
     <div className="space-y-6">
-      <ArrayVisualization state={state} {...(currentEvent ? { currentEvent } : {})} />
+      <ArrayVisualization
+        state={state}
+        stepDuration={store.speed}
+        {...(currentEvent ? { currentEvent } : {})}
+      />
       <VisualizationControls
         canNext={store.currentStep < store.events.length - 1 && store.status !== "complete"}
         canPrev={store.currentStep > 0}

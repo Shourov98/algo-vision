@@ -4,7 +4,7 @@ import type { AlgorithmEvent } from "@/features/visualization/events";
 import type { AlgorithmModule } from "@/features/visualization/modules/types";
 import { transition, type PlayerStatus } from "@/features/visualization/player/state-machine";
 
-export const playbackSpeeds = [400, 250, 150, 80, 40, 15] as const;
+export const playbackSpeeds = [1000, 700, 500, 350, 200, 100] as const;
 export type PlaybackSpeed = (typeof playbackSpeeds)[number];
 export type { PlayerStatus } from "@/features/visualization/player/state-machine";
 
@@ -42,7 +42,7 @@ export const useEngineStore = create<EngineStore>()((set) => ({
   events: [],
   currentStep: 0,
   status: "idle",
-  speed: 150,
+  speed: 700,
   visualizationState: null,
   load: (module, input) => {
     const events = module.run(input);

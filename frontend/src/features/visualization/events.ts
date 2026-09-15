@@ -26,7 +26,12 @@ export type AlgorithmEvent =
   | (BaseEvent & { type: "swap"; ids: [ElementId, ElementId] })
   | (BaseEvent & { type: "move"; elementId: ElementId; fromIndex: number; toIndex: number })
   | (BaseEvent & { type: "visit"; elementId: ElementId })
-  | (BaseEvent & { type: "select"; ids: ElementId[] })
+  | (BaseEvent & {
+      type: "select";
+      ids: ElementId[];
+      leftIds?: ElementId[];
+      rightIds?: ElementId[];
+    })
   | (BaseEvent & {
       type: "insert";
       elementId: ElementId;

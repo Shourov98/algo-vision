@@ -1,3 +1,7 @@
+"use client";
+
+import { useLayoutEffect, useRef } from "react";
+
 import type { ArrayState } from "@/features/visualization/adapters/array-adapter";
 import type { AlgorithmEvent, MarkStatus } from "@/features/visualization/events";
 
@@ -38,9 +42,11 @@ function barHeight(value: unknown, min: number, range: number) {
 export function ArrayVisualization({
   currentEvent,
   state,
+  stepDuration,
 }: {
   currentEvent?: AlgorithmEvent;
   state: ArrayState;
+  stepDuration: number;
 }) {
   const numericValues = state.items
     .map((item) => item.value)
@@ -49,6 +55,39 @@ export function ArrayVisualization({
   const max = numericValues.length ? Math.max(...numericValues) : 1;
   const range = Math.max(max - min, 1);
   const activeIds = highlightedIds(currentEvent);
+  const barRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousPositions = useRef(new Map<string, DOMRect>());
+  const leftIds =
+    currentEvent?.type === "select" && currentEvent.leftIds ? currentEvent.leftIds : [];
+  const rightIds =
+    currentEvent?.type === "select" && currentEvent.rightIds ? currentEvent.rightIds : [];
+
+  useLayoutEffect(() => {
+    const nextPositions = new Map<string, DOMRect>();
+    const animationDuration = Math.min(Math.max(Math.round(stepDuration * 0.8), 260), 900);
+
+    for (const item of state.items) {
+      const bar = barRefs.current.get(item.id);
+      if (!bar) continue;
+      const nextPosition = bar.getBoundingClientRect();
+      const previousPosition = previousPositions.current.get(item.id);
+      if (previousPosition) {
+        const translateX = previousPosition.left - nextPosition.left;
+        const translateY = previousPosition.top - nextPosition.top;
+        if (translateX || translateY) {
+          bar.animate(
+            [
+              { transform: `translate(${translateX}px, ${translateY}px)` },
+              { transform: "translate(0, 0)" },
+            ],
+            { duration: animationDuration, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+          );
+        }
+      }
+      nextPositions.set(item.id, nextPosition);
+    }
+    previousPositions.current = nextPositions;
+  }, [state.items, stepDuration]);
 
   return (
     <section
@@ -58,7 +97,9 @@ export function ArrayVisualization({
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Live array</p>
-          <p className="text-sm text-text-muted">Each bar is one value in the current order.</p>
+          <p className="text-sm text-text-muted">
+            Each bar is one value in the current order. Moved values glide into their new position.
+          </p>
         </div>
         <div aria-label="Visualization legend" className="flex flex-wrap gap-2 text-xs">
           {legend.map(({ label, status }) => (
@@ -72,17 +113,40 @@ export function ArrayVisualization({
           ))}
         </div>
       </div>
+      {leftIds.length || rightIds.length ? (
+        <p
+          aria-live="polite"
+          className="mb-4 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-muted"
+        >
+          <span className="font-semibold text-sky-300">Left half</span> and{" "}
+          <span className="font-semibold text-violet-300">right half</span> are ready to merge.
+        </p>
+      ) : null}
       <div className="grid min-h-64 grid-cols-[repeat(auto-fit,minmax(3.5rem,1fr))] items-end gap-3">
         {state.items.map((item, index) => {
           const isActive = activeIds.includes(item.id);
           const isSwap = currentEvent?.type === "swap" && isActive;
+          const isLeftHalf = leftIds.includes(item.id);
+          const isRightHalf = rightIds.includes(item.id);
+          const statusStyle = isLeftHalf
+            ? "border-sky-200 bg-sky-500 text-slate-950"
+            : isRightHalf
+              ? "border-violet-200 bg-violet-500 text-white"
+              : statusStyles[item.status];
           return (
-            <div className="flex min-w-0 flex-col items-center gap-2" key={item.id}>
+            <div
+              className="flex min-w-0 flex-col items-center gap-2"
+              key={item.id}
+              ref={(element) => {
+                if (element) barRefs.current.set(item.id, element);
+                else barRefs.current.delete(item.id);
+              }}
+            >
               <span className="font-mono text-xs text-text-subtle">{index}</span>
               <div className="flex h-48 w-full items-end rounded-lg bg-surface p-1.5">
                 <div
                   aria-label={`Value ${String(item.value)} at index ${index}${isActive ? ", active" : ""}`}
-                  className={`flex w-full items-start justify-center rounded-md border pt-2 font-mono text-sm font-bold shadow-sm transition-all duration-300 ease-out ${statusStyles[item.status]} ${isSwap ? "-translate-y-3 scale-105" : ""} ${isActive && !isSwap ? "scale-[1.03]" : ""}`}
+                  className={`flex w-full items-start justify-center rounded-md border pt-2 font-mono text-sm font-bold shadow-sm transition-[height,background-color,border-color,box-shadow] duration-300 ease-out ${statusStyle} ${isSwap ? "ring-4 ring-fuchsia-300/40" : ""} ${isActive && !isSwap ? "ring-2 ring-white/40" : ""}`}
                   style={{ height: `${barHeight(item.value, min, range)}px` }}
                 >
                   {String(item.value)}
