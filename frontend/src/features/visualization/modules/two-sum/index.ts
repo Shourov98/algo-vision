@@ -47,6 +47,13 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
 }
 
 export const twoSumModule: ArrayAlgorithmModule<number[]> = {
+  capabilities: {
+    maxItems: 12,
+    minItems: 2,
+    requiresSortedInput: false,
+    supportsDirection: false,
+    supportsTarget: true,
+  },
   slug: "two-sum",
   visualizationKind: "array",
   meta: {

@@ -18,6 +18,17 @@ export interface RunOptions {
   seed?: number;
   highlightLines?: boolean;
   target?: number;
+  direction?: SortDirection;
+}
+
+export type SortDirection = "ascending" | "descending";
+
+export interface ArrayModuleCapabilities {
+  supportsDirection: boolean;
+  requiresSortedInput: boolean;
+  minItems: number;
+  maxItems: number;
+  supportsTarget: boolean;
 }
 
 export interface TreeNode {
@@ -60,7 +71,10 @@ export interface HasGraphInput {
   defaultGraph: () => { nodes: GraphNode[]; edges: GraphEdge[] };
 }
 
-export type ArrayAlgorithmModule<Input = number[]> = AlgorithmModuleBase & HasDefaultInput<Input>;
+export type ArrayAlgorithmModule<Input = number[]> = AlgorithmModuleBase &
+  HasDefaultInput<Input> & {
+    capabilities: ArrayModuleCapabilities;
+  };
 export type TreeAlgorithmModule = AlgorithmModuleBase & HasRootInput;
 export type GraphAlgorithmModule = AlgorithmModuleBase & HasGraphInput;
 export type AlgorithmModule = ArrayAlgorithmModule | TreeAlgorithmModule | GraphAlgorithmModule;

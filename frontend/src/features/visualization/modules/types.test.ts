@@ -18,6 +18,13 @@ describe("algorithm module contracts", () => {
   it("narrows modules by their specialized input capability", () => {
     const modules: AlgorithmModule[] = [
       {
+        capabilities: {
+          maxItems: 12,
+          minItems: 2,
+          requiresSortedInput: false,
+          supportsDirection: true,
+          supportsTarget: false,
+        },
         defaultInput: () => [3, 1],
         meta,
         run: () => [],

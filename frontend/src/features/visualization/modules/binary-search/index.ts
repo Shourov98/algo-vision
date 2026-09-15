@@ -6,6 +6,13 @@ export { binarySearchMeta } from "@/features/visualization/modules/binary-search
 export { DEFAULT_TARGET, run } from "@/features/visualization/modules/binary-search/run";
 
 export const binarySearchModule: ArrayAlgorithmModule<number[]> = {
+  capabilities: {
+    maxItems: 12,
+    minItems: 2,
+    requiresSortedInput: true,
+    supportsDirection: true,
+    supportsTarget: true,
+  },
   slug: "binary-search",
   visualizationKind: "array",
   meta: binarySearchMeta,
