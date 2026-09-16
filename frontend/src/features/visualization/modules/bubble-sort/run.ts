@@ -4,6 +4,10 @@ import type {
   ElementId,
 } from "@/features/visualization/events";
 import type { RunOptions } from "@/features/visualization/modules/types";
+import {
+  resolveSortDirection,
+  shouldSwapForDirection,
+} from "@/features/visualization/modules/sort-direction";
 
 interface SortItem {
   id: ElementId;
@@ -26,6 +30,7 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
     id: `element-${index + 1}`,
     value,
   }));
+  const direction = resolveSortDirection(options?.direction);
   const events: AlgorithmEvent[] = [];
   let step = 0;
 
@@ -50,7 +55,7 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
         ),
       );
 
-      if (left.value > right.value) {
+      if (shouldSwapForDirection(left.value, right.value, direction)) {
         [items[index], items[index + 1]] = [right, left];
         emit(
           withLine(

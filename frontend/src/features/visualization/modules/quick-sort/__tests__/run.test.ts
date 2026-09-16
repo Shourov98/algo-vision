@@ -19,4 +19,13 @@ describe("quick-sort/run", () => {
     expect(state.items.map((item) => item.value)).toEqual([1, 2, 4, 5, 8]);
     expect(events.at(-1)?.type).toBe("complete");
   });
+  it("sorts in descending order with stable element IDs", () => {
+    const input = [...CANONICAL_INPUT];
+    const events = run(input, { direction: "descending" });
+    const state = events.reduce(ArrayAdapter.reduce, ArrayAdapter.createInitialState(input));
+
+    expect(run(input, { direction: "descending" })).toEqual(events);
+    expect(state.items.map((item) => item.value)).toEqual([8, 5, 4, 2, 1]);
+    expect(new Set(state.items.map((item) => item.id))).toHaveLength(input.length);
+  });
 });
