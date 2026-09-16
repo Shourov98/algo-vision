@@ -47,4 +47,14 @@ describe("bubble-sort/run", () => {
       "sorted",
     ]);
   });
+
+  it("sorts in descending order while preserving stable element IDs", () => {
+    const input = [...CANONICAL_INPUT];
+    const events = run(input, { direction: "descending" });
+    const finalState = events.reduce(ArrayAdapter.reduce, ArrayAdapter.createInitialState(input));
+
+    expect(run(input, { direction: "descending" })).toEqual(events);
+    expect(finalState.items.map((item) => item.value)).toEqual([8, 5, 4, 2, 1]);
+    expect(new Set(finalState.items.map((item) => item.id))).toHaveLength(input.length);
+  });
 });

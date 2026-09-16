@@ -4,6 +4,10 @@ import type {
   ElementId,
 } from "@/features/visualization/events";
 import type { RunOptions } from "@/features/visualization/modules/types";
+import {
+  resolveSortDirection,
+  shouldTakeLeftForDirection,
+} from "@/features/visualization/modules/sort-direction";
 
 interface SortItem {
   id: ElementId;
@@ -23,6 +27,7 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
     throw new TypeError("Merge Sort requires finite number values.");
 
   const items: SortItem[] = input.map((value, index) => ({ id: `element-${index + 1}`, value }));
+  const direction = resolveSortDirection(options?.direction);
   const events: AlgorithmEvent[] = [];
   let step = 0;
   const emit = (event: AlgorithmEventDraft) => {
@@ -51,7 +56,7 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
           options,
         ),
       );
-      if (leftItem.value <= rightItem.value) {
+      if (shouldTakeLeftForDirection(leftItem.value, rightItem.value, direction)) {
         merged.push(leftItem);
         leftIndex += 1;
       } else {

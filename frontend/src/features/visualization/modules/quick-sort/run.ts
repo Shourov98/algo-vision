@@ -4,6 +4,10 @@ import type {
   ElementId,
 } from "@/features/visualization/events";
 import type { RunOptions } from "@/features/visualization/modules/types";
+import {
+  resolveSortDirection,
+  shouldTakeLeftForDirection,
+} from "@/features/visualization/modules/sort-direction";
 
 interface SortItem {
   id: ElementId;
@@ -22,6 +26,7 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
   if (!input.every(Number.isFinite))
     throw new TypeError("Quick Sort requires finite number values.");
   const items: SortItem[] = input.map((value, index) => ({ id: `element-${index + 1}`, value }));
+  const direction = resolveSortDirection(options?.direction);
   const events: AlgorithmEvent[] = [];
   let step = 0;
   const emit = (event: AlgorithmEventDraft) => {
@@ -51,7 +56,7 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
           options,
         ),
       );
-      if (item.value <= pivot.value) {
+      if (shouldTakeLeftForDirection(item.value, pivot.value, direction)) {
         if (pivotIndex !== index) {
           const swapWith = items[pivotIndex]!;
           [items[pivotIndex], items[index]] = [item, swapWith];
