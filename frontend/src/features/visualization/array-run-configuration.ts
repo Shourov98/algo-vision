@@ -27,6 +27,18 @@ export interface ArrayRunConfigurationValidation {
   issues: ArrayRunConfigurationIssue[];
 }
 
+export function hasSameArrayRunConfiguration(
+  left: ArrayRunConfiguration,
+  right: ArrayRunConfiguration,
+) {
+  return (
+    left.direction === right.direction &&
+    left.target === right.target &&
+    left.values.length === right.values.length &&
+    left.values.every((value, index) => value === right.values[index])
+  );
+}
+
 export function createDeterministicPreset(itemCount: number): number[] {
   if (!Number.isInteger(itemCount) || itemCount < ARRAY_MIN_ITEMS || itemCount > ARRAY_MAX_ITEMS)
     throw new RangeError(`Array size must be between ${ARRAY_MIN_ITEMS} and ${ARRAY_MAX_ITEMS}.`);

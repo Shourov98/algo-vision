@@ -9,7 +9,10 @@ import { ComplexityPanel } from "@/components/visualization/complexity-panel";
 import { CurrentStepPanel } from "@/components/visualization/current-step-panel";
 import { VisualizationControls } from "@/components/visualization/visualization-controls";
 import { ArrayAdapter } from "@/features/visualization/adapters/array-adapter";
-import type { ArrayRunConfiguration } from "@/features/visualization/array-run-configuration";
+import {
+  hasSameArrayRunConfiguration,
+  type ArrayRunConfiguration,
+} from "@/features/visualization/array-run-configuration";
 import type { AlgorithmEvent } from "@/features/visualization/events";
 import { reportAlgorithmCompletionBySlug } from "@/lib/api/progress";
 import { StepScheduler } from "@/features/visualization/player/step-scheduler";
@@ -41,6 +44,7 @@ export function AlgorithmVisualizer({ module, sources }: AlgorithmVisualizerProp
 function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerProps) {
   const [language, setLanguage] = useState<SourceLanguage>("typescript");
   const [configuration, setConfiguration] = useState(() => createConfiguration(module));
+  const [activeConfiguration, setActiveConfiguration] = useState(() => createConfiguration(module));
   const store = useEngineStore();
   const load = useEngineStore((state) => state.load);
   const scheduler = useRef<StepScheduler | null>(null);
@@ -51,9 +55,8 @@ function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerPro
   const status = isCurrentModule ? store.status : "idle";
 
   useEffect(() => {
-    const nextConfiguration = createConfiguration(module);
-    load(module, nextConfiguration.values, nextConfiguration);
-  }, [load, module]);
+    load(module, activeConfiguration.values, activeConfiguration);
+  }, [activeConfiguration, load, module]);
 
   useEffect(() => {
     scheduler.current = new StepScheduler({
@@ -82,6 +85,12 @@ function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerPro
   }, [isCurrentModule, module.slug, status, store.sessionId]);
 
   const currentEvent = status === "idle" ? undefined : events[currentStep];
+  const hasPendingChanges = !hasSameArrayRunConfiguration(configuration, activeConfiguration);
+  const startConfiguration = (nextConfiguration: ArrayRunConfiguration) => {
+    const nextRun = { ...nextConfiguration, values: [...nextConfiguration.values] };
+    setConfiguration(nextRun);
+    setActiveConfiguration(nextRun);
+  };
   const input =
     isCurrentModule && Array.isArray(store.visualizationState)
       ? store.visualizationState
@@ -97,10 +106,13 @@ function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerPro
       <ArrayInputPanel
         capabilities={module.capabilities}
         configuration={configuration}
+        hasPendingChanges={hasPendingChanges}
         onChange={setConfiguration}
-        onStart={() => load(module, configuration.values, configuration)}
+        onSortAndStart={startConfiguration}
+        onStart={() => startConfiguration(configuration)}
       />
       <ArrayVisualization
+        runValues={activeConfiguration.values}
         state={state}
         stepDuration={store.speed}
         {...(currentEvent ? { currentEvent } : {})}
