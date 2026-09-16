@@ -949,6 +949,7 @@ explanation.
 | AV.3 | Correct Binary Search for ascending and descending order | binary-search module, typed range events, array renderer | Canonical traces for found/not-found in both directions |
 | AV.4 | Direction-aware sorting | Bubble, Merge, Quick module runners and shared comparator | Determinism, direction, and stable-ID reducer tests |
 | AV.5 | Teaching-quality rendering and end-to-end coverage | array renderer, step panel, Playwright flows | Reduced-motion test, visual/browser smoke, build, Lighthouse regression check |
+| AV.6 | Clear pending-versus-current array-run workflow | array input panel, visualizer shell, Binary Search actions | RTL state/action tests, accessibility audit, and browser smoke |
 
 One delivery slice per branch and PR. Each PR targets `dev-frontend`
 while that branch is in use; the integration PR then targets `develop`.
@@ -967,3 +968,49 @@ while that branch is in use; the integration PR then targets `develop`.
 □ Unit, component, E2E, lint, typecheck, format, and production-build checks pass.
 □ No TypeScript source file exceeds 400 lines.
 ```
+
+### 23.9 AV.6 — Pending and Current Run Clarity
+
+The array editor is a draft for the next engine session. The renderer is
+the current engine session. The UI must make that distinction explicit
+instead of allowing two different arrays to appear unrelated.
+
+#### Scope
+
+- Rename the editor surface to **Next run setup** and the renderer to
+  **Current run**.
+- Show the current session's input values above the visualized bars.
+- Detect whether the draft configuration differs from the active engine
+  session. When it does, show a visible, non-error pending-changes
+  notice: `Changes have not been applied. Start over to visualize them.`
+- Keep the current bars unchanged while a learner edits the draft. A
+  draft change must never mutate or replay the active session.
+- For Binary Search, retain the explicit `Sort for search` action and
+  add a direction-aware primary action: **Sort ascending & start** or
+  **Sort descending & start**.
+- Sorting must be an explicit learner action. Never silently reorder a
+  draft merely because its direction changes.
+- When a Binary Search draft is invalid because it is unsorted, explain
+  the reason next to the disabled start action and offer the explicit
+  sort-and-start action.
+
+#### Dependencies and boundaries
+
+- The UI owns draft comparison and messaging; runner modules remain
+  deterministic and receive concrete values and `RunOptions` only.
+- A sort-and-start action creates one fresh engine session after sorting
+  a copy of the draft in the selected direction.
+- Preserve the existing validation rules, stable IDs, keyboard controls,
+  and no-stale-events guarantee.
+
+#### Required verification
+
+- Unit-test draft/current-session equality comparison, including values,
+  direction, and target.
+- RTL-test the pending-changes notice, manual start, and both
+  direction-aware sort-and-start actions.
+- Verify an invalid unsorted Binary Search draft cannot start directly.
+- Add an axe/accessibility assertion for labels, live announcements, and
+  disabled-action explanation.
+- Browser-smoke the flow: edit values -> observe pending notice -> sort
+  and start -> confirm the current-run values and bars match.
