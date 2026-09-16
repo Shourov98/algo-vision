@@ -55,8 +55,9 @@ function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerPro
   const status = isCurrentModule ? store.status : "idle";
 
   useEffect(() => {
-    load(module, activeConfiguration.values, activeConfiguration);
-  }, [activeConfiguration, load, module]);
+    const initialConfiguration = createConfiguration(module);
+    load(module, initialConfiguration.values, initialConfiguration);
+  }, [load, module]);
 
   useEffect(() => {
     scheduler.current = new StepScheduler({
@@ -90,6 +91,7 @@ function AlgorithmVisualizerInstance({ module, sources }: AlgorithmVisualizerPro
     const nextRun = { ...nextConfiguration, values: [...nextConfiguration.values] };
     setConfiguration(nextRun);
     setActiveConfiguration(nextRun);
+    load(module, nextRun.values, nextRun);
   };
   const input =
     isCurrentModule && Array.isArray(store.visualizationState)

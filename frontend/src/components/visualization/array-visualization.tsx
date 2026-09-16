@@ -26,6 +26,7 @@ const legend: Array<{ label: string; status: MarkStatus }> = [
   { label: "Swapping", status: "swapping" },
   { label: "Sorted", status: "sorted" },
   { label: "Pivot", status: "pivot" },
+  { label: "Excluded", status: "excluded" },
 ];
 
 function highlightedIds(event?: AlgorithmEvent) {
@@ -38,6 +39,13 @@ function highlightedIds(event?: AlgorithmEvent) {
 function barHeight(value: unknown, min: number, range: number) {
   if (typeof value !== "number") return 72;
   return 46 + Math.round(((value - min) / range) * 128);
+}
+
+export function prefersReducedMotion() {
+  return (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 export function ArrayVisualization({
@@ -75,6 +83,7 @@ export function ArrayVisualization({
   useLayoutEffect(() => {
     const nextPositions = new Map<string, DOMRect>();
     const animationDuration = Math.min(Math.max(Math.round(stepDuration * 0.8), 260), 900);
+    const reduceMotion = prefersReducedMotion();
 
     for (const item of state.items) {
       const bar = barRefs.current.get(item.id);
@@ -84,7 +93,7 @@ export function ArrayVisualization({
       if (previousPosition) {
         const translateX = previousPosition.left - nextPosition.left;
         const translateY = previousPosition.top - nextPosition.top;
-        if (translateX || translateY) {
+        if (!reduceMotion && (translateX || translateY)) {
           bar.animate(
             [
               { transform: `translate(${translateX}px, ${translateY}px)` },
@@ -151,6 +160,8 @@ export function ArrayVisualization({
           const isRightHalf = rightIds.includes(item.id);
           const isInSearchRange = searchRange?.activeIds.includes(item.id) ?? false;
           const labels = pointerLabels(item.id);
+          const statusLabel = item.status === "excluded" ? ", excluded" : "";
+          const pointerLabel = labels.length ? `, ${labels.join(" and ")}` : "";
           const statusStyle = isLeftHalf
             ? "border-sky-200 bg-sky-500 text-slate-950"
             : isRightHalf
@@ -171,7 +182,7 @@ export function ArrayVisualization({
               </span>
               <div className="flex h-48 w-full items-end rounded-lg bg-surface p-1.5">
                 <div
-                  aria-label={`Value ${String(item.value)} at index ${index}${isActive ? ", active" : ""}`}
+                  aria-label={`Value ${String(item.value)} at index ${index}${isActive ? ", active" : ""}${pointerLabel}${statusLabel}`}
                   className={`flex w-full items-start justify-center rounded-md border pt-2 font-mono text-sm font-bold shadow-sm transition-[height,background-color,border-color,box-shadow] duration-300 ease-out ${statusStyle} ${isSwap ? "ring-4 ring-fuchsia-300/40" : ""} ${isActive && !isSwap ? "ring-2 ring-white/40" : ""}`}
                   style={{ height: `${barHeight(item.value, min, range)}px` }}
                 >

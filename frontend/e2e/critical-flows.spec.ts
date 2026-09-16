@@ -23,3 +23,20 @@ test("sign-in route renders the authentication form", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
 });
+
+test("Binary Search applies a configured target and exposes teaching pointers", async ({
+  page,
+}) => {
+  await page.goto("/algorithms/binary-search");
+  await expect(page.getByRole("heading", { name: "Binary Search" })).toBeVisible();
+
+  await page.getByLabel("Search target").fill("5");
+  await page.getByRole("button", { name: "Start over" }).click();
+  await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
+  await page.getByRole("button", { name: "Next" }).click();
+
+  await expect(page.getByText(/Target 5/)).toBeVisible();
+  await expect(page.getByText(/low/)).toBeVisible();
+  await expect(page.getByText(/mid/)).toBeVisible();
+  await expect(page.getByText(/high/)).toBeVisible();
+});
