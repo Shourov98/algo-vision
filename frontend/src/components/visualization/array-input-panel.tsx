@@ -22,17 +22,25 @@ const ISSUE_MESSAGES = {
 export interface ArrayInputPanelProps {
   capabilities: ArrayModuleCapabilities;
   configuration: ArrayRunConfiguration;
+  hasPendingChanges: boolean;
   onChange(configuration: ArrayRunConfiguration): void;
   onStart(): void;
+  onSortAndStart(configuration: ArrayRunConfiguration): void;
 }
 
 export function ArrayInputPanel({
   capabilities,
   configuration,
+  hasPendingChanges,
   onChange,
   onStart,
+  onSortAndStart,
 }: ArrayInputPanelProps) {
   const validation = validateArrayRunConfiguration(configuration, capabilities);
+  const canSortAndStart =
+    capabilities.requiresSortedInput &&
+    validation.issues.length > 0 &&
+    validation.issues.every((issue) => issue === "unsorted_input");
   const updateValues = (values: number[]) => onChange({ ...configuration, values });
   const updateValue = (index: number, rawValue: string) => {
     const values = [...configuration.values];
@@ -48,9 +56,11 @@ export function ArrayInputPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="array-input-title" className="font-semibold text-foreground">
-            Array input
+            Next run setup
           </h2>
-          <p className="text-sm text-text-muted">Edit values, then start a fresh visualization.</p>
+          <p className="text-sm text-text-muted">
+            Edit values, then start a fresh visualization when you are ready.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -145,6 +155,20 @@ export function ArrayInputPanel({
             Sort for search
           </Button>
         ) : null}
+        {canSortAndStart ? (
+          <Button
+            onClick={() =>
+              onSortAndStart({
+                ...configuration,
+                values: sortValuesForDirection(configuration.values, configuration.direction),
+              })
+            }
+            size="sm"
+            type="button"
+          >
+            Sort {configuration.direction} &amp; start
+          </Button>
+        ) : null}
         <Button
           onClick={() => updateValues(createDeterministicPreset(configuration.values.length))}
           size="sm"
@@ -160,6 +184,14 @@ export function ArrayInputPanel({
       <p aria-live="polite" className="mt-3 text-sm text-destructive">
         {validation.issues.map((issue) => ISSUE_MESSAGES[issue]).join(" ")}
       </p>
+      {hasPendingChanges ? (
+        <p
+          aria-live="polite"
+          className="mt-3 rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-2 text-sm text-sky-100"
+        >
+          Changes have not been applied. Start over to visualize them.
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -41,10 +41,12 @@ function barHeight(value: unknown, min: number, range: number) {
 
 export function ArrayVisualization({
   currentEvent,
+  runValues,
   state,
   stepDuration,
 }: {
   currentEvent?: AlgorithmEvent;
+  runValues?: readonly number[];
   state: ArrayState;
   stepDuration: number;
 }) {
@@ -96,10 +98,15 @@ export function ArrayVisualization({
     >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">Live array</p>
+          <p className="text-sm font-semibold text-foreground">Current run</p>
           <p className="text-sm text-text-muted">
             Each bar is one value in the current order. Moved values glide into their new position.
           </p>
+          {runValues ? (
+            <p className="mt-2 font-mono text-xs text-text-subtle">
+              Running input: [{runValues.join(", ")}]
+            </p>
+          ) : null}
         </div>
         <div aria-label="Visualization legend" className="flex flex-wrap gap-2 text-xs">
           {legend.map(({ label, status }) => (

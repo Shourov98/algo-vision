@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDeterministicPreset,
+  hasSameArrayRunConfiguration,
   isSortedForDirection,
   sortValuesForDirection,
   validateArrayRunConfiguration,
@@ -43,5 +44,16 @@ describe("array run configuration", () => {
     expect(sortValuesForDirection(values, "descending")).toEqual([5, 3, 1]);
     expect(values).toEqual([5, 1, 3]);
     expect(isSortedForDirection([5, 3, 1], "descending")).toBe(true);
+  });
+
+  it("detects a pending change across values, direction, and target", () => {
+    const active = { direction: "ascending" as const, target: 7, values: [1, 3, 7] };
+
+    expect(hasSameArrayRunConfiguration(active, { ...active, values: [1, 3, 7] })).toBe(true);
+    expect(hasSameArrayRunConfiguration(active, { ...active, direction: "descending" })).toBe(
+      false,
+    );
+    expect(hasSameArrayRunConfiguration(active, { ...active, target: 3 })).toBe(false);
+    expect(hasSameArrayRunConfiguration(active, { ...active, values: [1, 7, 3] })).toBe(false);
   });
 });
