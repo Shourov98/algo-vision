@@ -64,6 +64,34 @@ describe("ArrayAdapter", () => {
     expect(moved.items[1]?.status).toBe("active");
   });
 
+  it("retains Binary Search pointer IDs and exclusion state", () => {
+    const initial = ArrayAdapter.createInitialState([1, 3, 5], ["first", "second", "third"]);
+    const ranged = ArrayAdapter.reduce(initial, {
+      activeIds: ["second", "third"],
+      direction: "ascending",
+      eliminatedIds: ["first"],
+      highId: "third",
+      id: "range-1",
+      lowId: "second",
+      message: "Search indexes 1 through 2.",
+      middleId: "second",
+      t: 0,
+      target: 5,
+      type: "search-range",
+    });
+
+    expect(ranged.items[0]?.status).toBe("excluded");
+    expect(ranged.searchRange).toEqual({
+      activeIds: ["second", "third"],
+      direction: "ascending",
+      eliminatedIds: ["first"],
+      highId: "third",
+      lowId: "second",
+      middleId: "second",
+      target: 5,
+    });
+  });
+
   it("rejects events that reference unknown element IDs", () => {
     const initial = ArrayAdapter.createInitialState([8]);
     expect(() =>
