@@ -49,4 +49,31 @@ describe("binary-search/run", () => {
     if (!complete || complete.type !== "complete") throw new Error("Expected complete event.");
     expect(complete.summary).toEqual({ found: true, index: 2, target: 7 });
   });
+
+  it("emits stable search ranges and direction-aware decisions", () => {
+    const events = run([...CANONICAL_INPUT], { target: CANONICAL_TARGET });
+    const ranges = events.filter((event) => event.type === "search-range");
+
+    expect(ranges).toHaveLength(3);
+    expect(ranges[0]).toMatchObject({
+      activeIds: ["element-1", "element-2", "element-3", "element-4", "element-5", "element-6"],
+      highId: "element-6",
+      lowId: "element-1",
+      middleId: "element-3",
+      target: 7,
+    });
+    expect(events.some((event) => event.message.includes("discard the left half"))).toBe(true);
+  });
+
+  it("retains all exclusions when a descending search does not find its target", () => {
+    const events = run([11, 9, 7, 5, 3, 1], { direction: "descending", target: 8 });
+    const finalRange = events.filter((event) => event.type === "search-range").at(-1);
+
+    expect(finalRange).toMatchObject({
+      activeIds: [],
+      eliminatedIds: ["element-1", "element-2", "element-3", "element-4", "element-5", "element-6"],
+      target: 8,
+    });
+    expect(events.some((event) => event.message.includes("discard the right half"))).toBe(true);
+  });
 });

@@ -46,6 +46,17 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
     const middle = low + Math.floor((high - low) / 2);
     const value = input[middle]!;
     const elementId = ids[middle]!;
+    emit({
+      type: "search-range",
+      activeIds: ids.slice(low, high + 1),
+      direction,
+      eliminatedIds: ids.filter((_, index) => index < low || index > high),
+      highId: ids[high]!,
+      lowId: ids[low]!,
+      message: `Search range: indexes ${low} through ${high}; checking middle index ${middle}.`,
+      middleId: elementId,
+      target,
+    });
     emit(
       withLine(
         {
@@ -88,22 +99,31 @@ export function run(input: number[], options?: RunOptions): AlgorithmEvent[] {
       return events;
     }
 
+    const discardLeft = direction === "ascending" ? value < target : value > target;
+    const discardedSide = discardLeft ? "left" : "right";
     emit(
       withLine(
         {
           type: "visit",
           elementId,
-          message: `${value} is not the target; removing it from the range.`,
+          message: `${value} is ${value < target ? "less" : "greater"} than target ${target}; in ${direction} order, discard the ${discardedSide} half.`,
         },
         10,
         options,
       ),
     );
-    const discardLeft = direction === "ascending" ? value < target : value > target;
     if (discardLeft) low = middle + 1;
     else high = middle - 1;
   }
 
+  emit({
+    type: "search-range",
+    activeIds: [],
+    direction,
+    eliminatedIds: ids,
+    message: "No active range remains.",
+    target,
+  });
   emit(
     withLine(
       {

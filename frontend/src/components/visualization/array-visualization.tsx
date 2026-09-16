@@ -17,6 +17,7 @@ const statusStyles: Record<MarkStatus, string> = {
   current: "border-blue-200 bg-blue-500 text-white",
   target: "border-rose-200 bg-rose-500 text-white",
   found: "border-lime-200 bg-lime-500 text-slate-950",
+  excluded: "border-slate-700 bg-slate-800 text-slate-400 opacity-60",
 };
 
 const legend: Array<{ label: string; status: MarkStatus }> = [
@@ -63,6 +64,13 @@ export function ArrayVisualization({
     currentEvent?.type === "select" && currentEvent.leftIds ? currentEvent.leftIds : [];
   const rightIds =
     currentEvent?.type === "select" && currentEvent.rightIds ? currentEvent.rightIds : [];
+  const searchRange = state.searchRange;
+  const pointerLabels = (id: string) =>
+    [
+      searchRange?.lowId === id ? "low" : null,
+      searchRange?.middleId === id ? "mid" : null,
+      searchRange?.highId === id ? "high" : null,
+    ].filter((label): label is string => label !== null);
 
   useLayoutEffect(() => {
     const nextPositions = new Map<string, DOMRect>();
@@ -107,6 +115,12 @@ export function ArrayVisualization({
               Running input: [{runValues.join(", ")}]
             </p>
           ) : null}
+          {searchRange ? (
+            <p className="mt-2 text-xs text-sky-200">
+              Target <span className="font-mono font-semibold">{searchRange.target}</span> ·
+              Searching in {searchRange.direction} order
+            </p>
+          ) : null}
         </div>
         <div aria-label="Visualization legend" className="flex flex-wrap gap-2 text-xs">
           {legend.map(({ label, status }) => (
@@ -135,6 +149,8 @@ export function ArrayVisualization({
           const isSwap = currentEvent?.type === "swap" && isActive;
           const isLeftHalf = leftIds.includes(item.id);
           const isRightHalf = rightIds.includes(item.id);
+          const isInSearchRange = searchRange?.activeIds.includes(item.id) ?? false;
+          const labels = pointerLabels(item.id);
           const statusStyle = isLeftHalf
             ? "border-sky-200 bg-sky-500 text-slate-950"
             : isRightHalf
@@ -142,14 +158,17 @@ export function ArrayVisualization({
               : statusStyles[item.status];
           return (
             <div
-              className="flex min-w-0 flex-col items-center gap-2"
+              className={`flex min-w-0 flex-col items-center gap-2 rounded-lg ${isInSearchRange ? "bg-sky-400/10 p-1" : ""}`}
               key={item.id}
               ref={(element) => {
                 if (element) barRefs.current.set(item.id, element);
                 else barRefs.current.delete(item.id);
               }}
             >
-              <span className="font-mono text-xs text-text-subtle">{index}</span>
+              <span className="font-mono text-xs text-text-subtle">
+                {index}
+                {labels.length ? ` · ${labels.join("/")}` : ""}
+              </span>
               <div className="flex h-48 w-full items-end rounded-lg bg-surface p-1.5">
                 <div
                   aria-label={`Value ${String(item.value)} at index ${index}${isActive ? ", active" : ""}`}

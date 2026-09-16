@@ -12,7 +12,8 @@ export type MarkStatus =
   | "frontier"
   | "current"
   | "target"
-  | "found";
+  | "found"
+  | "excluded";
 
 export interface BaseEvent {
   id: string;
@@ -42,6 +43,16 @@ export type AlgorithmEvent =
   | (BaseEvent & { type: "delete"; elementId: ElementId })
   | (BaseEvent & { type: "update"; elementId: ElementId; value: unknown })
   | (BaseEvent & { type: "mark"; elementId: ElementId; status: MarkStatus })
+  | (BaseEvent & {
+      type: "search-range";
+      activeIds: ElementId[];
+      eliminatedIds: ElementId[];
+      lowId?: ElementId;
+      middleId?: ElementId;
+      highId?: ElementId;
+      target: number;
+      direction: "ascending" | "descending";
+    })
   | (BaseEvent & { type: "relax"; from: ElementId; to: ElementId; weight?: number })
   | (BaseEvent & { type: "found"; ids: ElementId[] })
   | (BaseEvent & { type: "enqueue"; elementId: ElementId })

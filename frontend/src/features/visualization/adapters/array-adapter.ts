@@ -8,6 +8,15 @@ export interface ArrayItem extends ElementView {
 
 export interface ArrayState {
   items: ArrayItem[];
+  searchRange?: {
+    activeIds: ElementId[];
+    eliminatedIds: ElementId[];
+    lowId?: ElementId;
+    middleId?: ElementId;
+    highId?: ElementId;
+    target: number;
+    direction: "ascending" | "descending";
+  };
 }
 
 function createElementIds(length: number, seed?: ElementId[]): ElementId[] {
@@ -48,6 +57,7 @@ export const ArrayAdapter: VisualizationAdapter<ArrayState> = {
 
   reduce(state, event) {
     const items = state.items.map((item) => ({ ...item }));
+    let searchRange = state.searchRange;
 
     switch (event.type) {
       case "compare":
@@ -99,6 +109,18 @@ export const ArrayAdapter: VisualizationAdapter<ArrayState> = {
       case "mark":
         setStatuses(items, [event.elementId], event.status);
         break;
+      case "search-range":
+        setStatuses(items, event.eliminatedIds, "excluded");
+        searchRange = {
+          activeIds: event.activeIds,
+          eliminatedIds: event.eliminatedIds,
+          ...(event.lowId ? { lowId: event.lowId } : {}),
+          ...(event.middleId ? { middleId: event.middleId } : {}),
+          ...(event.highId ? { highId: event.highId } : {}),
+          direction: event.direction,
+          target: event.target,
+        };
+        break;
       case "relax":
         getItem(items, event.from);
         getItem(items, event.to);
@@ -121,7 +143,7 @@ export const ArrayAdapter: VisualizationAdapter<ArrayState> = {
         break;
     }
 
-    return { items };
+    return { ...(searchRange ? { searchRange } : {}), items };
   },
 
   getElementIds(state) {
